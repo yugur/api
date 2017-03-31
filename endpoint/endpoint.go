@@ -33,6 +33,7 @@ func init() {
   }
 }
 
+// GetEntries retrieves all entries as a JSON object.
 func GetEntries(w http.ResponseWriter, r *http.Request) {
   if r.Method != "GET" {
     http.Error(w, http.StatusText(405), 405)
@@ -64,6 +65,7 @@ func GetEntries(w http.ResponseWriter, r *http.Request) {
   json.NewEncoder(w).Encode(entries)
 }
 
+// GetEntry utilizes HTTP form values to reply a single entry JSON object.
 func GetEntry(w http.ResponseWriter, r *http.Request) {
   if r.Method != "GET" {
     http.Error(w, http.StatusText(405), 405)
@@ -91,6 +93,7 @@ func GetEntry(w http.ResponseWriter, r *http.Request) {
   json.NewEncoder(w).Encode(entry)
 }
 
+// CreateEntry decodes the JSON body of a POST request to create a new entry.
 func CreateEntry(w http.ResponseWriter, r *http.Request) {
   var e Entry
 
