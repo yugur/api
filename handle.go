@@ -9,33 +9,169 @@ import (
   "encoding/json"
   "database/sql"
   "net/http"
+  "html/template"
   "fmt"
+  "log"
+
+  "github.com/yugur/api/crypto"
 )
 
-// StatusHandler may be used to confirm the server's current status.
-var StatusHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+type User struct {
+  Username string `json:"username"`
+  Hash     string `json:"hash"`
+}
+
+type Entry struct {
+  Headword   string `json:"headword"`
+  Definition string `json:"definition"`
+}
+
+// The primary database instance
+var db *sql.DB
+
+func init() {
+  var err error
+  db, err = sql.Open("postgres", "postgres://postgres:postgres@localhost/dictionary")
+  if err != nil {
+    log.Fatal(err)
+  }
+
+  if err = db.Ping(); err != nil {
+    log.Fatal(err)
+  }
+}
+
+// statusHandler may be used to confirm the server's current status.
+func statusHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case http.MethodGet:
     w.Write([]byte("OK"))
   default:
+    // Unsupported method
     http.Error(w, http.StatusText(405), 405)
   }
-})
+}
 
-// NotImplemented is called when a particular endpoint hasn't been provided
-// with a handler function.
-var NotImplemented = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// notImplemented is a simple stub for incomplete handlers.
+func notImplemented(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case http.MethodGet:
     w.Write([]byte("Not Implemented"))
   default:
+    // Unsupported method
     http.Error(w, http.StatusText(405), 405)
   }
-})
+}
 
-// EntryHandler is responsible for serving, adding, updating and removing
+// indexHandler serves the root page.
+func indexHandler(w http.ResponseWriter, r *http.Request) {
+  switch r.Method {
+  case http.MethodGet:
+    // Serve index page (demo)
+    render(w, "templates/index.html", nil)
+  default:
+    // Unsupported method
+    http.Error(w, http.StatusText(405), 405)
+  }
+}
+
+// registerHandler takes care of displaying and processing register requests.
+func registerHandler(w http.ResponseWriter, r *http.Request) {
+  switch r.Method {
+  case http.MethodGet:
+    // Serve registration page (demo)
+    render(w, "templates/register.html", nil)
+  case http.MethodPost:
+    // Attempt to register new user
+    // Parse form values
+    err := r.ParseForm()
+    if err != nil {
+      http.Error(w, http.StatusText(403), 403)
+    }
+    username := r.PostFormValue("username")
+    password := r.PostFormValue("password")
+
+    // Check whether the user already exists in database
+    var exists bool
+    err = db.QueryRow("SELECT 1 FROM users WHERE username = $1", username).Scan(&exists)
+    if err != nil && err != sql.ErrNoRows {
+      fmt.Fprintf(w, "User %s already exists.\n", username)
+      //http.Redirect(w, r, "/", http.StatusSeeOther)
+      return
+    }
+
+    // Generate hash for new user
+    hash, err := crypto.HashPassword(password)
+    if err != nil {
+      log.Println(err)
+    }
+
+    // Insert new user into database
+    result, err := db.Exec("INSERT INTO users VALUES($1, $2)", username, hash)
+    if err != nil {
+      log.Printf(err.Error())
+      http.Error(w, http.StatusText(500), 500)
+      return
+    }
+
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+      http.Error(w, http.StatusText(500), 500)
+      return
+    }
+
+    fmt.Fprintf(w, "Entry %s created successfully (%d rows affected)\n", username, rowsAffected)
+  default:
+    // Unsupported method
+    http.Error(w, http.StatusText(405), 405)
+  }
+}
+
+// loginHandler takes care of displaying and processing login requests.
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+  switch r.Method {
+  case http.MethodGet:
+    // Serve login page (demo)
+    render(w, "templates/login.html", nil)
+  case http.MethodPost:
+    // Attempt to login with given credentials
+    // Parse form values
+    err := r.ParseForm()
+    if err != nil {
+      http.Error(w, http.StatusText(403), 403)
+    }
+    username := r.PostFormValue("username")
+    password := r.PostFormValue("password")
+
+    // Retrieve the matching user from database
+    row := db.QueryRow("SELECT * FROM users WHERE username = $1", username)
+    user := new(User)
+    err = row.Scan(&user.Username, &user.Hash)
+    if err == sql.ErrNoRows {
+      http.NotFound(w, r)
+      return
+    } else if err != nil {
+      http.Error(w, http.StatusText(500), 500)
+      return
+    }
+
+    // Compare existing hash with given credentials
+    valid := crypto.CompareHash(password, user.Hash)
+    if !valid {
+      log.Printf("Failed login attempt: username=%s, password=%s", username, password)
+      return
+    }
+    log.Printf("Successful login attempt: username=%s, password=%s", username, password)
+    fmt.Fprintf(w, "Successfully logged in as user %s\n", username)
+  default:
+    // Unsupported method
+    http.Error(w, http.StatusText(405), 405)
+  }
+}
+
+// entryHandler is responsible for serving, adding, updating and removing
 // entries from the dictionary database.
-var EntryHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func entryHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case http.MethodGet:
     // Serve the entry
@@ -146,12 +282,13 @@ var EntryHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request)
 
     fmt.Fprintf(w, "Entry %s deleted successfully (%d rows affected)\n", word, rowsAffected)
   default:
+    // Unsupported method
     http.Error(w, http.StatusText(405), 405)
   }
-})
+}
 
-// IndexHandler provides an index of the entire dictionary for testing purposes.
-var IndexHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// fetchHandler provides an index of the entire dictionary for testing purposes.
+func fetchHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case http.MethodGet:
     rows, err := db.Query("SELECT * FROM entries")
@@ -160,7 +297,6 @@ var IndexHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request)
       return
     }
     defer rows.Close()
-
 
     entries := make([]*Entry, 0)
     for rows.Next() {
@@ -179,6 +315,18 @@ var IndexHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request)
 
     json.NewEncoder(w).Encode(entries)
   default:
+    // Unsupported method
     http.Error(w, http.StatusText(405), 405)
   }
-})
+}
+
+// render uses html/template to serve a template page.
+func render(w http.ResponseWriter, filename string, data interface{}) {
+  tmpl, err := template.ParseFiles(filename)
+  if err != nil {
+    http.Error(w, err.Error(), http.StatusInternalServerError)
+  }
+  if err := tmpl.Execute(w, data); err != nil {
+    http.Error(w, err.Error(), http.StatusInternalServerError)
+  }
+}

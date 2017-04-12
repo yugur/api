@@ -12,10 +12,13 @@ import (
 
 func main() {
   mux := http.NewServeMux()
-  mux.HandleFunc("/status", StatusHandler)
-  mux.HandleFunc("/entry", EntryHandler)
-  mux.HandleFunc("/index", IndexHandler)
-  mux.HandleFunc("/search", NotImplemented)
+  mux.HandleFunc("/", index)
+  mux.HandleFunc("/register", register)
+  mux.HandleFunc("/login", login)
+  mux.HandleFunc("/status", statusHandler)
+  mux.HandleFunc("/entry", entryHandler)
+  mux.HandleFunc("/fetch", fetchHandler)
+  mux.HandleFunc("/search", notImplemented)
   err := http.ListenAndServe(":3000", mux)
   if err != nil {
     log.Fatal("ListenAndServe: ", err)
