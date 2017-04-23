@@ -8,18 +8,20 @@ package main
 import (
   "net/http"
   "log"
+  "os"
+  "github.com/gorilla/handlers"
 )
 
 func main() {
   mux := http.NewServeMux()
-  mux.HandleFunc("/", index)
-  mux.HandleFunc("/register", register)
-  mux.HandleFunc("/login", login)
+  mux.HandleFunc("/", indexHandler)
+  mux.HandleFunc("/register", registerHandler)
+  mux.HandleFunc("/login", loginHandler)
   mux.HandleFunc("/status", statusHandler)
   mux.HandleFunc("/entry", entryHandler)
   mux.HandleFunc("/fetch", fetchHandler)
   mux.HandleFunc("/search", notImplemented)
-  err := http.ListenAndServe(":3000", mux)
+  err := http.ListenAndServe(":8080", handlers.LoggingHandler(os.Stdout, mux))
   if err != nil {
     log.Fatal("ListenAndServe: ", err)
   }

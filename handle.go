@@ -13,6 +13,7 @@ import (
   "fmt"
   "log"
 
+  "github.com/gorilla/sessions"
   "github.com/yugur/api/crypto"
 )
 
@@ -26,12 +27,14 @@ type Entry struct {
   Definition string `json:"definition"`
 }
 
+var store = sessions.NewCookieStore([]byte("something-very-secret"))
+
 // The primary database instance
 var db *sql.DB
 
 func init() {
   var err error
-  db, err = sql.Open("postgres", "postgres://postgres:postgres@localhost/dictionary")
+  db, err = sql.Open("postgres", "postgres://postgres:postgres@localhost/yugur")
   if err != nil {
     log.Fatal(err)
   }
@@ -45,7 +48,7 @@ func init() {
 func statusHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case http.MethodGet:
-    w.Write([]byte("OK"))
+    w.Write([]byte("OK\n"))
   default:
     // Unsupported method
     http.Error(w, http.StatusText(405), 405)
@@ -67,8 +70,22 @@ func notImplemented(w http.ResponseWriter, r *http.Request) {
 func indexHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case http.MethodGet:
-    // Serve index page (demo)
-    render(w, "templates/index.html", nil)
+    session, err := store.Get(r, "username")
+    if err != nil {
+      http.Error(w, http.StatusText(500), 500)
+    }
+    if val, ok := session.Values["username"].(string); ok {
+      log.Println("Username cookie: ", val)
+      switch val {
+        case "": 
+          http.Redirect(w, r, "/login", http.StatusFound)
+        default:
+          // Serve index page (demo)
+          render(w, "templates/index.html", nil)
+      }
+    } else {
+      http.Redirect(w, r, "/login", http.StatusFound)
+    }
   default:
     // Unsupported method
     http.Error(w, http.StatusText(405), 405)
@@ -162,7 +179,20 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
       return
     }
     log.Printf("Successful login attempt: username=%s, password=%s", username, password)
-    fmt.Fprintf(w, "Successfully logged in as user %s\n", username)
+    // fmt.Fprintf(w, "Successfully logged in as user %s\n", username)
+    session, err := store.Get(r, "username")
+    if err != nil {
+      http.Error(w, http.StatusText(500), 500)
+      return
+    }
+
+    session.Values["username"] = username
+    err = session.Save(r, w)
+    if err != nil {
+      http.Error(w, http.StatusText(500), 500)
+    }
+
+    http.Redirect(w, r, "/", 302)
   default:
     // Unsupported method
     http.Error(w, http.StatusText(405), 405)
