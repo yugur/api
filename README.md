@@ -14,12 +14,14 @@ $ psql
 ```
 
 2. Initialize database
+
 You may need to create a role for your account before running any scripts.
 ```
 # \i demo.sql
 ```
 
 3. Get the API
+
 Using go get:
 ```
 $ go get github.com/yugur/api
