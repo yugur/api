@@ -223,7 +223,7 @@ func entryHandler(w http.ResponseWriter, r *http.Request) {
       return
     }
 
-json.NewEncoder(w).Encode(entry)
+    json.NewEncoder(w).Encode(entry)
 
 
   case http.MethodPost:
