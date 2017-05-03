@@ -224,6 +224,8 @@ func entryHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     json.NewEncoder(w).Encode(entry)
+
+
   case http.MethodPost:
     // Create a new entry
     var e Entry
@@ -348,6 +350,30 @@ func fetchHandler(w http.ResponseWriter, r *http.Request) {
     // Unsupported method
     http.Error(w, http.StatusText(405), 405)
   }
+}
+// Search by letter, returns all entries starting with the input letter
+func letterSearchHandler(w http.ResponseWriter, r *http.Request) {
+    word := r.FormValue("q")
+    if word == "" {
+      http.Error(w, http.StatusText(400), 400)
+      return
+    }
+    query := ("SELECT * FROM entries WHERE headword LIKE '" + word + "%%'")
+    rows, err := db.Query(query)
+    
+    defer rows.Close()
+    for rows.Next() {
+      entry := new(Entry)
+      err = rows.Scan(&entry.Headword, &entry.Definition)
+      if err == sql.ErrNoRows {
+        http.NotFound(w, r)
+        return
+      } else if err != nil {
+        http.Error(w, http.StatusText(500), 500)
+        return
+      }
+      json.NewEncoder(w).Encode(entry)
+    }
 }
 
 // render uses html/template to serve a template page.

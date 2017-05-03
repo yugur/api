@@ -20,6 +20,7 @@ func main() {
   mux.HandleFunc("/status", statusHandler)
   mux.HandleFunc("/entry", entryHandler)
   mux.HandleFunc("/fetch", fetchHandler)
+  mux.HandleFunc("/search-letter", letterSearchHandler)
   mux.HandleFunc("/search", notImplemented)
   err := http.ListenAndServe(":8080", handlers.LoggingHandler(os.Stdout, mux))
   if err != nil {
