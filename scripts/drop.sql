@@ -1,0 +1,5 @@
+DROP TABLE languages CASCADE;
+DROP TABLE entries CASCADE;
+DROP TABLE users CASCADE;
+DROP TABLE dictionaries CASCADE;
+DROP TABLE wordtypes CASCADE;
