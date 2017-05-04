@@ -12,6 +12,7 @@ import (
   "html/template"
   "fmt"
   "log"
+  "strings"
 
   "github.com/gorilla/sessions"
   "github.com/yugur/api/crypto"
@@ -351,14 +352,14 @@ func fetchHandler(w http.ResponseWriter, r *http.Request) {
     http.Error(w, http.StatusText(405), 405)
   }
 }
-// Search by letter, returns all entries starting with the input letter
+// Search by letter, returns all entries starting with the requested letter
 func letterSearchHandler(w http.ResponseWriter, r *http.Request) {
     word := r.FormValue("q")
     if word == "" {
       http.Error(w, http.StatusText(400), 400)
       return
     }
-    query := ("SELECT * FROM entries WHERE headword LIKE '" + word + "%%'")
+    query := ("SELECT * FROM entries WHERE headword LIKE '" + strings.ToLower(word) + "%%'" + "OR headword LIKE '" + strings.ToUpper(word) + "%%'")
     rows, err := db.Query(query)
     
     defer rows.Close()
