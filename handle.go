@@ -354,27 +354,67 @@ func fetchHandler(w http.ResponseWriter, r *http.Request) {
 }
 // Search by letter, returns all entries starting with the requested letter
 func letterSearchHandler(w http.ResponseWriter, r *http.Request) {
-    word := r.FormValue("q")
-    if word == "" {
-      http.Error(w, http.StatusText(400), 400)
+  word := r.FormValue("q")
+  if word == "" {
+    http.Error(w, http.StatusText(400), 400)
+    return
+  }
+ /* query := ("SELECT * FROM entries WHERE headword LIKE '" + strings.ToLower(word) + "%%'" + "OR headword LIKE '" + strings.ToUpper(word) + "%%'")*/
+  lower := strings.ToLower(word) + "%"
+  upper := strings.ToUpper(word) + "%"
+  rows, err := db.Query("SELECT * FROM entries WHERE headword LIKE $1 OR headword LIKE $2", lower, upper)
+  if err == sql.ErrNoRows {
+    http.NotFound(w, r)
+    return
+  }
+  
+  defer rows.Close()
+  entries := make([]*Entry, 0)
+  for rows.Next() {
+    entry := new(Entry)
+    err = rows.Scan(&entry.Headword, &entry.Definition)
+    if err != nil {
+      http.Error(w, http.StatusText(500), 500)
       return
     }
-    query := ("SELECT * FROM entries WHERE headword LIKE '" + strings.ToLower(word) + "%%'" + "OR headword LIKE '" + strings.ToUpper(word) + "%%'")
-    rows, err := db.Query(query)
+    entries = append(entries, entry)
+  }
+  if err = rows.Err(); err != nil {
+    http.Error(w, http.StatusText(500), 500)
+    return
+  }
+  json.NewEncoder(w).Encode(entries)
+}
+
+// Search by category, returns all entries associated with the requested tag
+func tagSearchHandler(w http.ResponseWriter, r *http.Request) {
+  word := r.FormValue("q")
+  if word == "" {
+    http.Error(w, http.StatusText(400), 400)
+    return
+  }
+  rows, err := db.Query("SELECT tags.headword, entries.definition FROM tags JOIN entries ON tags.headword = entries.headword WHERE tags.tag = $1", word)    
+  if err == sql.ErrNoRows {
+      http.NotFound(w, r)
+      return
+    }
     
     defer rows.Close()
+    entries := make([]*Entry, 0)
     for rows.Next() {
       entry := new(Entry)
       err = rows.Scan(&entry.Headword, &entry.Definition)
-      if err == sql.ErrNoRows {
-        http.NotFound(w, r)
-        return
-      } else if err != nil {
+      if err != nil {
         http.Error(w, http.StatusText(500), 500)
         return
       }
-      json.NewEncoder(w).Encode(entry)
+      entries = append(entries, entry)
     }
+    if err = rows.Err(); err != nil {
+      http.Error(w, http.StatusText(500), 500)
+      return
+    }
+    json.NewEncoder(w).Encode(entries)
 }
 
 // render uses html/template to serve a template page.

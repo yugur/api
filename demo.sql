@@ -1,3 +1,9 @@
+ALTER TABLE tags
+DROP CONSTRAINT FK_headwordTag;
+DROP TABLE entries;
+DROP TABLE users;
+DROP TABLE tags;
+
 CREATE TABLE entries (
   headword  	varchar(255) NOT NULL,
   definition 	varchar(255) NOT NULL
@@ -17,3 +23,24 @@ CREATE TABLE users (
 );
 
 ALTER TABLE users ADD PRIMARY KEY (username);
+
+CREATE TABLE tags (
+  headword varchar(255) NOT NULL,
+  tag	     varchar(255) NOT NULL 
+);
+
+ALTER TABLE tags ADD PRIMARY KEY (headword, tag);
+
+ALTER TABLE tags
+ADD CONSTRAINT FK_headwordTag
+FOREIGN KEY (headword) REFERENCES entries(headword);
+
+INSERT INTO tags (headword, tag) VALUES
+('happy', 'emotions'),
+('sad', 'emotions'),
+('dog', 'animals'),
+('cat', 'animals');
+
+
+
+
