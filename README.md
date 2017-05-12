@@ -10,7 +10,7 @@ $ sudo apt-get install postgresql postgresql-contrib
 $ sudo -i -u postgres
 $ createdb yugur
 $ psql
-# ALTER TABLE postgres WITH PASSWORD 'postgres';
+# ALTER USER postgres WITH PASSWORD 'postgres';
 ```
 
 2. Initialize database

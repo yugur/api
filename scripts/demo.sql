@@ -10,12 +10,12 @@ CREATE TABLE wordtypes (
 );
 
 CREATE TABLE tags (
-	tag_id		bigserial		PRIMARY KEY,
+	tag_id		bigserial	PRIMARY KEY,
 	name		text		NOT NULL UNIQUE
 );
 
 CREATE TABLE entries (
-	entry_id		bigserial 	PRIMARY KEY,
+	entry_id	bigserial 	PRIMARY KEY,
 	headword	text 		NOT NULL,
 	wordtype	bigint		REFERENCES wordtypes (wordtype_id),
 	definition	text		,
