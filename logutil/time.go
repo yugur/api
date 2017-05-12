@@ -1,4 +1,4 @@
-// Copyright 2017 Nicholas Brown. All rights reserved.
+// Copyright 2017 The Yugur.io Authors. All rights reserved.
 // Use of this source code is governed by an MIT-style
 // license that can be found in the LICENSE file.
 

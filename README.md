@@ -44,3 +44,9 @@ $ api
 ```
 
 Go to `localhost:8080` to make sure it works.
+
+# Contribution
+The Yugur.io API is being actively contributed to by:
+
+- Nicholas Brown (@nicholasbrown)
+- Alexander Lawrence (@alexlawrence9)
