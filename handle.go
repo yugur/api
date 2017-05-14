@@ -36,6 +36,12 @@ type Entry struct {
   Definition_Language string `json:"def_lang"`
 }
 
+type Tag struct {
+  Name     string `json:"name"`
+  Tag_Id   int    `json:"tag_id"`
+  Entry_Id int    `json:"entry_id"`
+}
+
 var store = sessions.NewCookieStore([]byte(conf.Keystore))
 
 // statusHandler may be used to confirm the server's current status.
@@ -178,6 +184,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
     // Retrieve the matching user from database
     row := db.QueryRow("SELECT uid, username, hash FROM users WHERE username = $1", username)
+
     user := new(User)
     err = row.Scan(&user.UID, &user.Username, &user.Hash)
     if err == sql.ErrNoRows {
@@ -228,7 +235,6 @@ func entryHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     row := db.QueryRow("SELECT * FROM entries WHERE entry_id = $1", id)
-    //row := database.Select("entries", "entry_id", strconv.FormatInt(id, 10))
 
     entry := new(Entry)
     err = row.Scan(&entry.ID, &entry.Headword, &entry.Wordtype, &entry.Definition, &entry.Headword_Language, &entry.Definition_Language)
@@ -372,15 +378,14 @@ func fetchHandler(w http.ResponseWriter, r *http.Request) {
 }
 // Search by letter, returns all entries starting with the requested letter
 func letterSearchHandler(w http.ResponseWriter, r *http.Request) {
-  word := r.FormValue("q")
-  if word == "" {
+  letter := r.FormValue("q")
+  if letter == "" {
     http.Error(w, http.StatusText(400), 400)
     return
   }
- /* query := ("SELECT * FROM entries WHERE headword LIKE '" + strings.ToLower(word) + "%%'" + "OR headword LIKE '" + strings.ToUpper(word) + "%%'")*/
-  lower := strings.ToLower(word) + "%"
-  upper := strings.ToUpper(word) + "%"
-  rows, err := db.Query("SELECT * FROM entries WHERE headword LIKE $1 OR headword LIKE $2", lower, upper)
+  lower := strings.ToLower(letter) + "%"
+  upper := strings.ToUpper(letter) + "%"
+  rows, err := db.Query("SELECT headword, definition FROM entries WHERE headword LIKE $1 OR headword LIKE $2", lower, upper)
   if err == sql.ErrNoRows {
     http.NotFound(w, r)
     return
@@ -406,6 +411,8 @@ func letterSearchHandler(w http.ResponseWriter, r *http.Request) {
 
 // Search by category, returns all entries associated with the requested tag
 func tagSearchHandler(w http.ResponseWriter, r *http.Request) {
+  switch r.Method {
+  case http.MethodGet:
   id := r.FormValue("q")
   if id == "" {
     http.Error(w, http.StatusText(400), 400)
@@ -413,10 +420,10 @@ func tagSearchHandler(w http.ResponseWriter, r *http.Request) {
   }
   rows, err := db.Query("SELECT entries.entry_id, entries.headword, entries.wordtype, entries.definition, entries.hw_lang, entries.def_lang FROM (SELECT * FROM entry_tags WHERE tag_id = $1) AS entry_tags JOIN entries ON entry_tags.entry_id = entries.entry_id", id)    
   if err == sql.ErrNoRows {
-      http.NotFound(w, r)
-      return
-    }
-    
+    http.NotFound(w, r)
+    return
+  }
+      
     defer rows.Close()
     entries := make([]*Entry, 0)
     for rows.Next() {
@@ -433,6 +440,65 @@ func tagSearchHandler(w http.ResponseWriter, r *http.Request) {
       return
     }
     json.NewEncoder(w).Encode(entries)
+  case http.MethodPost:
+    // Add a new tag relationship
+    var t Tag
+
+    if r.Body == nil {
+      http.Error(w, http.StatusText(400), 400)
+      return
+    }
+
+    err := json.NewDecoder(r.Body).Decode(&t)
+    if err != nil {
+      http.Error(w, err.Error(), 400)
+      return
+    }
+
+    if t.Name == "" {
+      http.Error(w, http.StatusText(400), 400)
+      return
+    }
+
+    result, err := db.Exec("INSERT INTO entry_tags VALUES($1, $2)", t.Tag_Id, t.Entry_Id)
+    if err != nil {
+      http.Error(w, http.StatusText(500), 500)
+      return
+    }
+
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+      http.Error(w, http.StatusText(500), 500)
+      return
+    }
+    fmt.Fprintf(w, "Tag Id %d added to entry %d successfully (%d rows affected)\n", t.Tag_Id, t.Entry_Id, rowsAffected) 
+  case http.MethodDelete:
+    // Remove a tag relationship
+    tag_id := r.FormValue("tag_id")
+    entry_id := r.FormValue("entry_id")
+    if tag_id == "" || entry_id == ""  {
+      http.Error(w, http.StatusText(400), 400)
+      return
+    }
+
+    result, err := db.Exec("DELETE FROM entry_tags WHERE tag_id = $1 AND entry_id = $2", tag_id, entry_id)
+    if err != nil {
+      http.Error(w, http.StatusText(500), 500)
+      return
+    }
+
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+      http.Error(w, http.StatusText(500), 500)
+      return
+    }
+
+    if (rowsAffected == 0) {
+      fmt.Fprintf(w, "Tag %s doesn't exist (%d rows affected)\n", tag_id, rowsAffected)
+    } else {
+      fmt.Fprintf(w, "Tag %s deleted successfully (%d rows affected)\n", tag_id, rowsAffected);
+    }
+  }
 }
 
 // render uses html/template to serve a template page.

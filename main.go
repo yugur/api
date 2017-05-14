@@ -56,8 +56,8 @@ func main() {
   mux.HandleFunc("/status", statusHandler)
   mux.HandleFunc("/entry", entryHandler)
   mux.HandleFunc("/fetch", fetchHandler)
-  mux.HandleFunc("/search-letter", letterSearchHandler)
-  mux.HandleFunc("/search-tag", tagSearchHandler)
+  mux.HandleFunc("/letter", letterSearchHandler)
+  mux.HandleFunc("/tag", tagSearchHandler)
   mux.HandleFunc("/search", notImplemented)
   fmt.Println("done!")
 
