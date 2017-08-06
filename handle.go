@@ -28,22 +28,7 @@ type Entry struct {
   Definition string `json:"definition"`
 }
 
-var store = sessions.NewCookieStore([]byte("something-very-secret"))
-
-// The primary database instance
-var db *sql.DB
-
-func init() {
-  var err error
-  db, err = sql.Open("postgres", "postgres://postgres:postgres@localhost/yugur")
-  if err != nil {
-    log.Fatal(err)
-  }
-
-  if err = db.Ping(); err != nil {
-    log.Fatal(err)
-  }
-}
+var store = sessions.NewCookieStore([]byte(config.Keystore))
 
 // statusHandler may be used to confirm the server's current status.
 func statusHandler(w http.ResponseWriter, r *http.Request) {

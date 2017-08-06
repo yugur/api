@@ -1,0 +1,13 @@
+{
+	"database": {
+		"host":     "localhost",
+		"user":     "postgres",
+		"password": "postgres",
+		"database": "yugur"
+	},
+	"host": "localhost",
+	"port": "8080",
+	"cors": false,
+	"keystore": "my-super-secret-key",
+	"verbose": true
+}

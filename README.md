@@ -1,5 +1,5 @@
 # yugur API
-API for the yugur.io crowd-sourced dictionary.
+API for the Yugur Online dictionary.
 
 # Installation
 Installation assumes a clean Ubuntu/Debian installation that already has Go 1.8 installed.
@@ -17,7 +17,7 @@ $ psql
 
 You may need to create a role for your account before running any scripts.
 ```
-# \i demo.sql
+# \i old_demo.sql
 ```
 
 3. Get the API
