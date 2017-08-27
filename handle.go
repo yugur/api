@@ -78,7 +78,12 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
   }
 }
 
-// registerHandler takes care of displaying and processing register requests.
+/* 
+  registerHandler is responsible for dealing with user registration.
+  On GET requests this will serve a basic registration page.
+  On POST requests it will attempt to register a user as per
+  the provided form values.
+*/
 func registerHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case http.MethodGet:
@@ -130,7 +135,14 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
   }
 }
 
-// loginHandler takes care of displaying and processing login requests.
+/*
+  loginHandler takes care of user login attempts.
+  On GET this will serve a demo login page.
+  On POST it will attempt to auth using the provided form values.
+  In the event of successful authentication, the handler will respond with
+  a valid session token. Future requests from the user should include this
+  token until it expires or the user logs out.
+*/
 func loginHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case http.MethodGet:
