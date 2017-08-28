@@ -2,8 +2,8 @@
 // Use of this source code is governed by an MIT-style
 // license that can be found in the LICENSE file.
 
-// logutil provides additional logging/benchmarking tools.
-package logutil
+// util provides additional logging/benchmarking tools.
+package util
 
 import (
   "time"

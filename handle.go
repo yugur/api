@@ -28,7 +28,7 @@ type Entry struct {
   Definition string `json:"definition"`
 }
 
-var store = sessions.NewCookieStore([]byte(config.Keystore))
+var store = sessions.NewCookieStore([]byte(conf.Keystore))
 
 // statusHandler may be used to confirm the server's current status.
 func statusHandler(w http.ResponseWriter, r *http.Request) {

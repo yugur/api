@@ -8,17 +8,17 @@ package crypto
 import (
   "time"
   "golang.org/x/crypto/bcrypt"
-  "github.com/yugur/api/logutil"
+  "github.com/yugur/api/util"
 )
 
 func HashPassword(password string) (string, error) {
-  defer logutil.TrackTime(time.Now(), "HashPassword")
+  defer util.TrackTime(time.Now(), "HashPassword")
   bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
   return string(bytes), err
 }
 
 func CompareHash(password, hash string) bool {
-  defer logutil.TrackTime(time.Now(), "CompareHash")
+  defer util.TrackTime(time.Now(), "CompareHash")
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }

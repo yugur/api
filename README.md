@@ -1,5 +1,5 @@
-# yugur API
-Source for the Yugur Online dictionary REST API.
+# Yugur RESTful API
+Source for the Yugur RESTful API.
 
 ## About
 The API currently supports typical CRUD operations and basic auth, however auth is not fully integrated with the other handlers at this time (e.g. when you make a call to delete a dictionary entry, the API will allow it regardless of whether or not it received a valid session token.) You may also notice that there are two DB init scripts: `scripts/demo.sql` and `scripts/old_demo.sql`. The new script represents the DB structure that we are moving towards, while the old script still works out-of-the-box with the current source. For the time being you should use the old script.
