@@ -238,16 +238,23 @@ func entryHandler(w http.ResponseWriter, r *http.Request) {
 
     entry := new(Entry)
     err = row.Scan(&entry.ID, &entry.Headword, &entry.Wordtype, &entry.Definition, &entry.Headword_Language, &entry.Definition_Language)
-    if err == sql.ErrNoRows {
-      http.NotFound(w, r)
-      return
-    } else if err != nil {
-      log.Printf(err.Error())
+    
+    defer rows.Close()
+    entries := make([]*Entry, 0)
+    for rows.Next() {
+      entry := new(Entry)
+      err = rows.Scan(&entry.Entry_Id, &entry.Headword, &entry.Wordtype, &entry.Definition, &entry.Hw_Lang, &entry.Def_Lang)
+      if err != nil {
+        http.Error(w, http.StatusText(500), 500)
+        return
+      }
+      entries = append(entries, entry)
+    }
+    if err = rows.Err(); err != nil {
       http.Error(w, http.StatusText(500), 500)
       return
     }
-
-    json.NewEncoder(w).Encode(entry)
+    json.NewEncoder(w).Encode(entries)
 
 
   case http.MethodPost:
@@ -299,7 +306,7 @@ func entryHandler(w http.ResponseWriter, r *http.Request) {
       return
     }
 
-    if e.Headword == "" {
+    if e.Entry_Id == "" {
       http.Error(w, http.StatusText(400), 400)
       return
     }
@@ -316,7 +323,7 @@ func entryHandler(w http.ResponseWriter, r *http.Request) {
       return
     }
 
-    fmt.Fprintf(w, "Entry %s updated successfully (%d rows affected)\n", e.Headword, rowsAffected)
+    fmt.Fprintf(w, "Entry %s updated successfully (%d rows affected)\n", e.Entry_Id, rowsAffected)
   case http.MethodDelete:
     // Remove an existing entry
     id := r.FormValue("q")
@@ -385,7 +392,7 @@ func letterSearchHandler(w http.ResponseWriter, r *http.Request) {
   }
   lower := strings.ToLower(letter) + "%"
   upper := strings.ToUpper(letter) + "%"
-  rows, err := db.Query("SELECT headword, definition FROM entries WHERE headword LIKE $1 OR headword LIKE $2", lower, upper)
+  rows, err := db.Query("SELECT * FROM entries WHERE headword LIKE $1 OR headword LIKE $2", lower, upper)
   if err == sql.ErrNoRows {
     http.NotFound(w, r)
     return
@@ -395,6 +402,7 @@ func letterSearchHandler(w http.ResponseWriter, r *http.Request) {
   entries := make([]*Entry, 0)
   for rows.Next() {
     entry := new(Entry)
+
     err = rows.Scan(&entry.ID, &entry.Headword, &entry.Wordtype, &entry.Definition, &entry.Headword_Language, &entry.Definition_Language)
     if err != nil {
       http.Error(w, http.StatusText(500), 500)
@@ -413,21 +421,22 @@ func letterSearchHandler(w http.ResponseWriter, r *http.Request) {
 func tagSearchHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case http.MethodGet:
-  id := r.FormValue("q")
-  if id == "" {
-    http.Error(w, http.StatusText(400), 400)
-    return
-  }
-  rows, err := db.Query("SELECT entries.entry_id, entries.headword, entries.wordtype, entries.definition, entries.hw_lang, entries.def_lang FROM (SELECT * FROM entry_tags WHERE tag_id = $1) AS entry_tags JOIN entries ON entry_tags.entry_id = entries.entry_id", id)    
-  if err == sql.ErrNoRows {
-    http.NotFound(w, r)
-    return
-  }
+    id := r.FormValue("q")
+    if id == "" {
+      http.Error(w, http.StatusText(400), 400)
+      return
+    }
+    rows, err := db.Query("SELECT entries.entry_id, entries.headword, entries.wordtype, entries.definition, entries.hw_lang, entries.def_lang FROM (SELECT * FROM entry_tags WHERE tag_id = $1) AS entry_tags JOIN entries ON entry_tags.entry_id = entries.entry_id", id)    
+    if err == sql.ErrNoRows {
+      http.NotFound(w, r)
+      return
+    }
       
     defer rows.Close()
     entries := make([]*Entry, 0)
     for rows.Next() {
       entry := new(Entry)
+
       err = rows.Scan(&entry.ID, &entry.Headword, &entry.Wordtype, &entry.Definition, &entry.Headword_Language, &entry.Definition_Language)
       if err != nil {
         http.Error(w, http.StatusText(500), 500)

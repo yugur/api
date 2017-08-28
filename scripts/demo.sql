@@ -1,12 +1,13 @@
 CREATE TABLE languages (
-	lang_id		bigserial	PRIMARY KEY,
-	name		text		NOT NULL,
-	code		text		NOT NULL UNIQUE
+--	lang_id		bigserial	PRIMARY KEY,
+  code		text		PRIMARY KEY,
+	name		text		NOT NULL
+	-- NOT NULL UNIQUE
 );
 
 CREATE TABLE wordtypes (
-	wordtype_id	bigserial	PRIMARY KEY,
-	name		text		NOT NULL UNIQUE
+	-- wordtype_id	bigserial	PRIMARY KEY,
+	name		text		PRIMARY KEY
 );
 
 CREATE TABLE tags (
@@ -17,10 +18,10 @@ CREATE TABLE tags (
 CREATE TABLE entries (
 	entry_id	bigserial 	PRIMARY KEY,
 	headword	text 		NOT NULL,
-	wordtype	bigint		REFERENCES wordtypes (wordtype_id),
+	wordtype	text		REFERENCES wordtypes (name),
 	definition	text		,
-	hw_lang		bigint		REFERENCES languages (lang_id) ON DELETE CASCADE,
-	def_lang	bigint		REFERENCES languages (lang_id) ON DELETE CASCADE
+	hw_lang		text		REFERENCES languages (code) ON DELETE CASCADE,
+	def_lang	text		REFERENCES languages (code) ON DELETE CASCADE
 );
 
 CREATE TABLE entry_tags (
@@ -43,7 +44,7 @@ CREATE TABLE users (
 	dob			date		,
 	gender		text		,
 	joindate	timestamp	NOT NULL,
-	language	bigint		REFERENCES languages (lang_id),
+	language	text		REFERENCES languages (code),
 	fluency		int[]		
 );
 
@@ -65,9 +66,13 @@ INSERT INTO tags (name) VALUES
 	('passion'),
 	('fervor');
 
-INSERT INTO entries (headword, wordtype, definition, hw_lang, def_lang) VALUES
+/*INSERT INTO entries (headword, wordtype, definition, hw_lang, def_lang) VALUES
 	('fire', (SELECT wordtype_id FROM wordtypes WHERE name='noun'), 'Burning fuel or other material: a cooking fire; a forest fire.', (SELECT lang_id FROM languages WHERE code='en-AU'), (SELECT lang_id FROM languages WHERE code='en-AU')),
-	('fire', (SELECT wordtype_id FROM wordtypes WHERE name='noun'), 'Burning intensity of feeling; ardor.', (SELECT lang_id FROM languages WHERE code='en-AU'), (SELECT lang_id FROM languages WHERE code='en-AU'));
+	('fire', (SELECT wordtype_id FROM wordtypes WHERE name='noun'), 'Burning intensity of feeling; ardor.', (SELECT lang_id FROM languages WHERE code='en-AU'), (SELECT lang_id FROM languages WHERE code='en-AU'));*/
+
+
+INSERT INTO entries (headword, wordtype, definition, hw_lang, def_lang) VALUES (
+'dog', 'noun', 'common pet', 'en-AU', 'en-AU'),('fire','noun','Burning fuel or other material: a cooking fire; a forest fire.','en-AU','en-AU'),('fire','noun','Burning intensity of feeling; ardor.','en-AU','en-AU');
 
 -- add 'flame' tag to all entries with the headword 'fire'
 INSERT INTO
