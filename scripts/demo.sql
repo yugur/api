@@ -36,7 +36,7 @@ CREATE TABLE entry_tags (
 );
 
 CREATE TABLE users (
-	user_id		bigserial	PRIMARY KEY,
+	uid			bigserial	PRIMARY KEY,
 	username	text		NOT NULL UNIQUE,
 	hash		text		NOT NULL,
 	email		text		NOT NULL UNIQUE,

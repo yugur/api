@@ -16,7 +16,7 @@ import (
   "github.com/yugur/api/config"
 )
 
-// Global config values. This should only be changed via main.LoadConfiguration
+// Global config values. This should only be changed via a call to config.Load(string)
 var conf config.Values
 
 // The primary database instance

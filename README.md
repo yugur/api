@@ -9,18 +9,31 @@ The API currently supports typical CRUD operations and basic auth, however auth 
 - status (GET): will return OK if API is running correctly, error otherwise.
 - register (GET, POST): GET can be ignored if you have a frontend. POST is used to create a new user by providing the formvalues `username` and `password`
 - login (GET, POST): as above but for auth. You will receive a cookie in response if login was successful.
-- entry (GET, POST, PUT, DELETE): typical CRUD operations on individual dictionary entries. GET and DELETE both expect a formvalue `q` specifying the entry, while POST and PUT both expect a JSON object outlined below.  
+- entry (GET, POST, PUT, DELETE): typical CRUD operations on individual dictionary entries. GET and DELETE both expect a formvalue `q` specifying the entry ID, while POST and PUT both expect a JSON object outlined below.
 - fetch (GET): only relevant for testing/sanity checks. returns a JSON object of the entire dictionary.
-- search-letter (GET): given a single letter in formvalue `q` this will return all words beginning with that letter. **UNRANKED**
+- search-letter (GET): given a single letter in formvalue `q` this will return all entries beginning with that letter.
+- search-tag (GET): given a tag ID, this will return all entries linked to that tag.
 
-### A dictionary object
-As noted previously this is expected to change once we transition to the newer DB structure. For now, each dictionary entry is represented by a headword and definition and is stored in JSON like so:
+** Coming soon: **
+- search (GET): given a query string (initially just a word) this will return all entries matching that word. This is the main way that a front end should obtain entry IDs that it can then use to direct the user to a specific page.
+- imfeelinglucky (GET): returns a random entry.
+
+### Dictionary objects
+A dictionary entry is currently represented in JSON like so:
 ```
 {
-  "headword": "dog",
-  "definition": "a member of the genus Canis that has been domesticated by man since prehistoric times"
+	"id":         "1",
+	"headword":   "fire",
+	"wordtype":   "1",
+	"definition": "Burning fuel or other material: a cooking fire; a forest fire.",
+	"hw_lang":    "1",
+	"def_lang":   "1"
 }
 ```
+* `id` is unique to every entry.
+* `headword` is what a user expects to see.
+* `wordtype` is an ID corresponding to a row in the wordtypes table.
+* `hw_lang` and `def_lang` are IDs corresponding to rows in the languages table. These are used to define the language of the headword and definition respectively. These may be changed soon to be unique locale codes like `en-AU` instead.
 
 ## Installation
 The following instructions will get you started with a very simple setup. You may wish to modify the config file in which case your commands will differ (e.g. psql username and password). Installation assumes a clean Ubuntu/Debian installation that already has [Go 1.8](https://golang.org/dl/). 
