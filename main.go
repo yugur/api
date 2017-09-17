@@ -58,7 +58,8 @@ func main() {
   mux.HandleFunc("/fetch", fetchHandler)
   mux.HandleFunc("/letter", letterSearchHandler)
   mux.HandleFunc("/tag", tagSearchHandler)
-  mux.HandleFunc("/search", notImplemented)
+  mux.HandleFunc("/search", searchHandler)
+  mux.HandleFunc("/random", notImplemented)
   fmt.Println("done!")
 
   fmt.Println("Listening on port " + conf.Port + "...")

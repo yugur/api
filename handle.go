@@ -221,6 +221,47 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
   }
 }
 
+// Given a query, this handler will attempt to return a collection
+// of dictionary entries relevant to that query.
+func searchHandler(w http.ResponseWriter, r *http.Request) {
+  switch r.Method {
+  case http.MethodGet:
+    query := r.FormValue("q")
+
+    rows, err := db.Query("SELECT * FROM entries WHERE headword = $1", query)
+    if err != nil {
+      if err == sql.ErrNoRows {
+        http.NotFound(w, r)
+        return
+      } else {
+        http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+        return
+      }
+    }
+
+    defer rows.Close()
+    entries := make([]*Entry, 0)
+    for rows.Next() {
+      entry := new(Entry)
+
+      err = rows.Scan(&entry.ID, &entry.Headword, &entry.Wordtype, &entry.Definition, &entry.Headword_Language, &entry.Definition_Language)
+      if err != nil {
+        http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+        return
+      }
+      entries = append(entries, entry)
+    }
+    if err = rows.Err(); err != nil {
+      http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+      return
+    }
+    json.NewEncoder(w).Encode(entries)
+  default:
+    // Unsupported method
+    http.Error(w, http.StatusText(405), 405)
+  }
+}
+
 // entryHandler is responsible for serving, adding, updating and removing
 // entries from the dictionary database.
 func entryHandler(w http.ResponseWriter, r *http.Request) {
@@ -234,7 +275,6 @@ func entryHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     row := db.QueryRow("SELECT * FROM entries WHERE entry_id = $1", id)
-    //row := database.Select("entries", "entry_id", strconv.FormatInt(id, 10))
 
     entry := new(Entry)
     err = row.Scan(&entry.ID, &entry.Headword, &entry.Wordtype, &entry.Definition, &entry.Headword_Language, &entry.Definition_Language)
@@ -248,7 +288,6 @@ func entryHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     json.NewEncoder(w).Encode(entry)
-
 
   case http.MethodPost:
     // Create a new entry
