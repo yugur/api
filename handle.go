@@ -190,7 +190,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
       http.NotFound(w, r)
       return
     } else if err != nil {
-      http.Error(w, http.StatusText(500), 500)
+      http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
       return
     }
 
@@ -204,14 +204,14 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
     // fmt.Fprintf(w, "Successfully logged in as user %s\n", username)
     session, err := store.Get(r, "uid")
     if err != nil {
-      http.Error(w, http.StatusText(500), 500)
+      http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
       return
     }
 
     session.Values["uid"] = user.UID
     err = session.Save(r, w)
     if err != nil {
-      http.Error(w, http.StatusText(500), 500)
+      http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
     }
 
     http.Redirect(w, r, "/", 302)

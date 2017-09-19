@@ -29,7 +29,8 @@ type Values struct {
 // Demarshals the provided JSON object into a Values struct
 func Load(file string) (config Values, err error) {
   var conf Values
-  configFile, err := os.Open(file)
+  pwd, _ := os.Getwd()
+  configFile, err := os.Open(pwd+"/"+file)
   defer configFile.Close()
   if err != nil {
     log.Fatal(err)
