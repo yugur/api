@@ -11,26 +11,33 @@ import (
 )
 
 const (
-	FatalError = "FatalError"
-	InternalError = "InternalError"
+	// Internal API error codes
+	FatalError = 1
 )
 
-func Error(err string, w http.ResponseWriter) {
+func getRequestMessage(r *http.Request) string {
+	return r.Method + " | " + r.URL.String()
+}
+
+func Error(e int, msg string, w http.ResponseWriter) {
 	if w != nil {
-		switch (err) {
-		case InternalError:
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		}
+		http.Error(w, http.StatusText(e), e)
+		log.Println(msg)
 	} else {
-		log.Fatal(err)
+		switch (e) {
+		case FatalError:
+			log.Fatal(msg)
+		default:
+			log.Println(msg)
+		}
 	}
 }
 
-func Fatal() (string, http.ResponseWriter) {
-	return FatalError, nil
+func Fatal() (int, string, http.ResponseWriter) {
+	return FatalError, "Fatal Error", nil
 }
 
-func Internal(w http.ResponseWriter) (string, http.ResponseWriter) {
-	return InternalError, w
-
+func Internal(w http.ResponseWriter, r *http.Request) (int, string, http.ResponseWriter) {
+	// log here
+	return http.StatusInternalServerError, "Internal Server Error (" + getRequestMessage(r) + ")", w
 }
