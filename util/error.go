@@ -33,14 +33,51 @@ func Error(e int, msg string, w http.ResponseWriter) {
 	}
 }
 
+//---------------------------------------------------------
+//---- API Errors 
+//---------------------------------------------------------
+
 func Fatal() (int, string, http.ResponseWriter) {
 	return FatalError, "Fatal Error", nil
 }
 
+//---------------------------------------------------------
+//---- HTTP Status Codes
+//---------------------------------------------------------
+
+//----
+//---- 2xx
+//----
+
+// HTTP 200 OK
+func OK(w http.ResponseWriter, r *http.Request) (int, string, http.ResponseWriter) {
+	return http.StatusOK, http.StatusText(http.StatusOK) + " (" + getRequestMessage(r) + ")", w
+}
+
+//----
+//---- 4xx
+//----
+
+// HTTP 400 Bad Request
+func BadRequest(w http.ResponseWriter, r *http.Request) (int, string, http.ResponseWriter) {
+	return http.StatusBadRequest, http.StatusText(http.StatusBadRequest) + " (" + getRequestMessage(r) + ")", w
+}
+
+// HTTP 404 Not Found
+func NotFound(w http.ResponseWriter, r *http.Request) (int, string, http.ResponseWriter) {
+	return http.StatusNotFound, http.StatusText(http.StatusNotFound) + " (" + getRequestMessage(r) + ")", w
+}
+
+//----
+//---- 5xx
+//----
+
+// HTTP 500 Internal Server Error
 func Internal(w http.ResponseWriter, r *http.Request) (int, string, http.ResponseWriter) {
 	return http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError) + " (" + getRequestMessage(r) + ")", w
 }
 
-func BadRequest(w http.ResponseWriter, r *http.Request) (int, string, http.ResponseWriter) {
-	return http.StatusBadRequest, http.StatusText(http.StatusBadRequest) + " (" + getRequestMessage(r) + ")", w
+// HTTP 501 Not Implemented
+func NotImplemented(w http.ResponseWriter, r *http.Request) (int, string, http.ResponseWriter) {
+	return http.StatusNotImplemented, http.StatusText(http.StatusNotImplemented) + " (" + getRequestMessage(r) + ")", w
 }
