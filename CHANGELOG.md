@@ -1,6 +1,23 @@
 # Yugur API Changelog
 
-## Upcoming
+## 2017-09-20
+
+### New features
+* Generic search handler
+	* Given a single token query q, this handler will compile a unique set of entries from all of the available searching methods.
+	* No indexing, this won't scale but it will do for demonstration.
+* Query functions
+	* Most of the SQL functionality has been moved to a separate file.
+	* Handlers make calls as appropriate to these functions.
+	* This has cleaned up most of the handler code to be much more readable.
+* Human-readable <-> database conversion
+	* Entries are now processed on arrival/departure.
+	* Basically a front-end no longer has to be aware of any concept of unique IDs (except for the entry ID)
+	* Can be extended in the future to sanitise incoming requests.
+* Error calls
+	* Initial base for a generic error function.
+	* Uses Go's ability to pass multi-paramater functions as the parameters for another function.
+	* Subject to change.
 
 ### Changes
 * Codebase has been updated to properly support the new database. All existing handlers should work, however many of their usages have been changed.
@@ -12,14 +29,7 @@
 * Tag search handler has been fixed. The previous query didn't seem to be working for any of the demo scripts so it has been replaced with a new query that supports the entry_tags 1-to-many relationship.
 * There is now an email field on the template register page.
 * Sessions are now stored by ID instead of username.
-
-
-### Still to come
-* Utility functions to speed up the id <=> name process (where relevant)
-* A search handler to accomodate the fact that headwords are no longer unique
-	* This isn't expected to perform any fancy IR, it will just grab all entries that have that headword.
-* Debugging improvements, including new functions for the util package.
-* (Possibly) functions or a package to replace the clunky in-line SQL.
+* CORS is now enabled by default.
 
 ### Failed experiments
 * An attempt to turn Go into Java by creating a special database package for all of the different queries. Seems possible but more complicated than it would be worth.
