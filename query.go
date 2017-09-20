@@ -23,23 +23,8 @@ func index() ([]*Entry, error) {
   }
   defer rows.Close()
 
-  for rows.Next() {
-    entry := new(Entry)
-
-    err := rows.Scan(
-      &entry.ID,
-      &entry.Headword,
-      &entry.Wordtype,
-      &entry.Definition,
-      &entry.Headword_Language,
-      &entry.Definition_Language)
-
-    if err != nil {
-      return entries, err
-    }
-    entries = append(entries, entry)
-  }
-  if err = rows.Err(); err != nil {
+  entries, err := scanRows(rows)
+  if err != nil {
     return entries, err
   }
 
@@ -67,24 +52,14 @@ func idSearch(ids ...string) ([]*Entry, error) {
 }
 
 func headwordSearch(word string) ([]*Entry, error) {
-  entries := make([]*Entry, 0)
-
   rows, err := db.Query("SELECT * FROM entries WHERE headword = $1", word)
   if err != nil {
     return entries, err
   }
   defer rows.Close()
 
-  for rows.Next() {
-    entry := new(Entry)
-
-    err = rows.Scan(&entry.ID, &entry.Headword, &entry.Wordtype, &entry.Definition, &entry.Headword_Language, &entry.Definition_Language)
-    if err != nil {
-      return entries, err
-    }
-    entries = append(entries, entry)
-  }
-  if err = rows.Err(); err != nil {
+  entries, err := scanRows(rows)
+  if err != nil {
     return entries, err
   }
 
@@ -92,33 +67,67 @@ func headwordSearch(word string) ([]*Entry, error) {
 }
 
 func tagSearch(tag string) ([]*Entry, error) {
-  entries := make([]*Entry, 0)
 
   tagID, err := getTagID(tag)
   if err != nil {
-    return entries, err
+    return nil, err
   }
 
   rows, err := db.Query("SELECT entries.entry_id, entries.headword, entries.wordtype, entries.definition, entries.hw_lang, entries.def_lang FROM (SELECT * FROM entry_tags WHERE tag_id = $1) AS entry_tags JOIN entries ON entry_tags.entry_id = entries.entry_id", tagID)    
   if err != nil {
-    return entries, err
+    return nil, err
   }
   defer rows.Close()
 
-  for rows.Next() {
-    entry := new(Entry)
+  entries, err := scanRows(rows)
+  if err != nil {
+    return entries, err
+  }
 
-    err = rows.Scan(&entry.ID, &entry.Headword, &entry.Wordtype, &entry.Definition, &entry.Headword_Language, &entry.Definition_Language)
-      if err != nil {
-        return entries, err
-      }
-      entries = append(entries, entry)
-    }
-    if err = rows.Err(); err != nil {
-      return entries, err
-    }
+  return entries, nil
+}
 
-    return entries, nil
+func wordtypeSearch(wordtype string) ([]*Entry, error) {
+  id, err := getWordtypeID(wordtype)
+  if err != nil {
+    return nil, err
+  }
+
+  query := `SELECT * FROM entries
+            WHERE wordtype = $1`
+  rows, err := db.Query(query, id)
+  if err != nil {
+    return nil, err
+  }
+  defer rows.Close()
+
+  entries, err := scanRows(rows)
+  if err != nil {
+    return entries, err
+  }
+
+  return entries, nil
+}
+
+func definitionSearch(token string) ([]*Entry, error) {
+  if token == "" {
+    return nil, nil
+  }
+
+  query := `SELECT * FROM entries
+            WHERE STRPOS(definition, $1) > 0`
+  rows, err := db.Query(query, token)
+  if err != nil {
+    return nil, err
+  }
+  defer rows.Close()
+
+  entries, err := scanRows(rows)
+  if err != nil {
+    return entries, err
+  }
+
+  return entries, nil
 }
 
 //---------------------------------------------------------
@@ -288,6 +297,30 @@ func asIncoming(entries ...*Entry) ([]*Entry, error) {
     entry.Wordtype = wordtype
     entry.Headword_Language = headwordLanguage
     entry.Definition_Language = definitionLanguage
+  }
+  return entries, nil
+}
+
+func scanRows(rows *sql.Rows) ([]*Entry, error) {
+  var entries []*Entry
+
+  for rows.Next() {
+    entry := new(Entry)
+
+    err := rows.Scan(
+      &entry.ID,
+      &entry.Headword,
+      &entry.Wordtype,
+      &entry.Definition,
+      &entry.Headword_Language,
+      &entry.Definition_Language)
+    if err != nil {
+      return entries, err
+    }
+    entries = append(entries, entry)
+  }
+  if err := rows.Err(); err != nil {
+    return entries, err
   }
   return entries, nil
 }

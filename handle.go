@@ -30,16 +30,6 @@ type User struct {
   Hash     string `json:"hash"`
 }
 
-type Entry struct {
-  ID         string `json:"id"`
-  Headword   string `json:"headword"`
-  Wordtype   string `json:"wordtype"`
-  Definition string `json:"definition"`
-
-  Headword_Language   string `json:"hw_lang"`
-  Definition_Language string `json:"def_lang"`
-}
-
 type Tag struct {
   ID       string    `json:"id"`
   Name     string `json:"name"`
@@ -239,7 +229,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 //---- Dictionary Handlers
 //----
 
-// searchHandler returns a collection of entries given some query 'q'.
+// searchHandler returns a collection of unique entries given some query 'q'.
 func searchHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case http.MethodGet:
@@ -259,7 +249,20 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
     }
     entries = append(entries, tagResults...)
 
-    // wordtype search, etc.
+    wordtypeResults, err := wordtypeSearch(query)
+    if err != nil {
+      wordtypeResults = nil
+    }
+    entries = append(entries, wordtypeResults...)
+
+    definitionResults, err := definitionSearch(query)
+    if err != nil {
+      log.Println(err)
+      wordtypeResults = nil
+    }
+    entries = append(entries, definitionResults...)
+
+    entries = entrySet(entries...)
 
     response, err := asOutgoing(entries...)
     if err != nil {
