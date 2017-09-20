@@ -16,7 +16,7 @@ const (
 )
 
 func getRequestMessage(r *http.Request) string {
-	return r.Method + " | " + r.URL.String()
+	return r.Method + " " + r.URL.String()
 }
 
 func Error(e int, msg string, w http.ResponseWriter) {
@@ -38,6 +38,9 @@ func Fatal() (int, string, http.ResponseWriter) {
 }
 
 func Internal(w http.ResponseWriter, r *http.Request) (int, string, http.ResponseWriter) {
-	// log here
-	return http.StatusInternalServerError, "Internal Server Error (" + getRequestMessage(r) + ")", w
+	return http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError) + " (" + getRequestMessage(r) + ")", w
+}
+
+func BadRequest(w http.ResponseWriter, r *http.Request) (int, string, http.ResponseWriter) {
+	return http.StatusBadRequest, http.StatusText(http.StatusBadRequest) + " (" + getRequestMessage(r) + ")", w
 }

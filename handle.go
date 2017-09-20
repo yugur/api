@@ -48,7 +48,6 @@ var store = sessions.NewCookieStore([]byte(conf.Keystore))
 func statusHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case http.MethodGet:
-    util.Error(util.Internal(w, r))
     w.Write([]byte("OK\n"))
   default:
     // Unsupported method
@@ -277,15 +276,6 @@ func tagSearch(tag string) ([]*Entry, error) {
     return entries, err
 }
 
-func getTagID(tag string) (uint64, error) {
-  var result uint64
-
-  row := db.QueryRow("SELECT tag_id FROM tags WHERE name = $1", tag)
-  err := row.Scan(&result)
-
-  return result, err
-}
-
 // Given a query, this handler will attempt to return a collection
 // of dictionary entries relevant to that query.
 func searchHandler(w http.ResponseWriter, r *http.Request) {
@@ -308,8 +298,14 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
     entries = append(entries, tagResults...)
 
     // wordtype search, etc.
+
+    response, err := asOutgoing(entries...)
+    if err != nil {
+      util.Error(util.Internal(w, r))
+      return
+    }
     
-    json.NewEncoder(w).Encode(entries)
+    json.NewEncoder(w).Encode(response)
   default:
     // Unsupported method
     http.Error(w, http.StatusText(405), 405)
@@ -341,11 +337,17 @@ func entryHandler(w http.ResponseWriter, r *http.Request) {
       return
     }
 
-    json.NewEncoder(w).Encode(entry)
+    response, err := asOutgoing(entry)
+    if err != nil {
+      util.Error(util.Internal(w, r))
+      return
+    }
+    
+    json.NewEncoder(w).Encode(response)
 
   case http.MethodPost:
     // Create a new entry
-    var e Entry
+    e := new(Entry)
 
     if r.Body == nil {
       http.Error(w, http.StatusText(400), 400)
@@ -363,7 +365,13 @@ func entryHandler(w http.ResponseWriter, r *http.Request) {
       return
     }
 
-    result, err := db.Exec("INSERT INTO entries (headword, wordtype, definition, hw_lang, def_lang) VALUES($1, $2, $3, $4, $5)", e.Headword, e.Wordtype, e.Definition, e.Headword_Language, e.Definition_Language)
+    request, err := asIncoming(e)
+    if err != nil {
+      util.Error(util.BadRequest(w, r))
+      return
+    }
+
+    result, err := db.Exec("INSERT INTO entries (headword, wordtype, definition, hw_lang, def_lang) VALUES($1, $2, $3, $4, $5)", request[0].Headword, request[0].Wordtype, request[0].Definition, request[0].Headword_Language, request[0].Definition_Language)
     if err != nil {
       log.Printf(err.Error())
       http.Error(w, http.StatusText(500), 500)
@@ -379,7 +387,7 @@ func entryHandler(w http.ResponseWriter, r *http.Request) {
     fmt.Fprintf(w, "Entry %s created successfully (%d rows affected)\n", e.Headword, rowsAffected)
   case http.MethodPut:
     // Update an existing entry
-    var e Entry
+    e := new(Entry)
 
     if r.Body == nil {
       http.Error(w, http.StatusText(400), 400)
@@ -397,7 +405,13 @@ func entryHandler(w http.ResponseWriter, r *http.Request) {
       return
     }
 
-    result, err := db.Exec("UPDATE entries SET (headword, wordtype, definition, hw_lang, def_lang) = ($2, $3, $4, $5, $6) WHERE entry_id = $1", e.ID, e.Headword, e.Wordtype, e.Definition, e.Headword_Language, e.Definition_Language)
+    request, err := asIncoming(e)
+    if err != nil {
+      util.Error(util.BadRequest(w, r))
+      return
+    }
+
+    result, err := db.Exec("UPDATE entries SET (headword, wordtype, definition, hw_lang, def_lang) = ($2, $3, $4, $5, $6) WHERE entry_id = $1", request[0].ID, request[0].Headword, request[0].Wordtype, request[0].Definition, request[0].Headword_Language, request[0].Definition_Language)
     if err != nil {
       http.Error(w, http.StatusText(500), 500)
       return
@@ -463,7 +477,13 @@ func fetchHandler(w http.ResponseWriter, r *http.Request) {
       return
     }
 
-    json.NewEncoder(w).Encode(entries)
+    response, err := asOutgoing(entries...)
+    if err != nil {
+      util.Error(util.Internal(w, r))
+      return
+    }
+
+    json.NewEncoder(w).Encode(response)
   default:
     // Unsupported method
     http.Error(w, http.StatusText(405), 405)
@@ -501,41 +521,36 @@ func letterSearchHandler(w http.ResponseWriter, r *http.Request) {
     http.Error(w, http.StatusText(500), 500)
     return
   }
-  json.NewEncoder(w).Encode(entries)
+
+  response, err := asOutgoing(entries...)
+  if err != nil {
+    util.Error(util.Internal(w, r))
+    return
+  }
+
+  json.NewEncoder(w).Encode(response)
 }
 
 // Search by category, returns all entries associated with the requested tag
 func tagSearchHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case http.MethodGet:
-    id := r.FormValue("q")
-    if id == "" {
-      http.Error(w, http.StatusText(400), 400)
-      return
-    }
-    rows, err := db.Query("SELECT entries.entry_id, entries.headword, entries.wordtype, entries.definition, entries.hw_lang, entries.def_lang FROM (SELECT * FROM entry_tags WHERE tag_id = $1) AS entry_tags JOIN entries ON entry_tags.entry_id = entries.entry_id", id)    
-    if err == sql.ErrNoRows {
-      http.NotFound(w, r)
-      return
-    }
-      
-    defer rows.Close()
-    entries := make([]*Entry, 0)
-    for rows.Next() {
-      entry := new(Entry)
+    var entries []*Entry
 
-      err = rows.Scan(&entry.ID, &entry.Headword, &entry.Wordtype, &entry.Definition, &entry.Headword_Language, &entry.Definition_Language)
-      if err != nil {
-        http.Error(w, http.StatusText(500), 500)
-        return
-      }
-      entries = append(entries, entry)
+    query := r.FormValue("q")
+
+    entries, err := tagSearch(query)
+    if err != nil {
+      entries = nil
     }
-    if err = rows.Err(); err != nil {
-      http.Error(w, http.StatusText(500), 500)
+
+    response, err := asOutgoing(entries...)
+    if err != nil {
+      util.Error(util.Internal(w, r))
       return
     }
-    json.NewEncoder(w).Encode(entries)
+    
+    json.NewEncoder(w).Encode(response)
   case http.MethodPost:
     // Add a new tag relationship
     entryID := r.FormValue("entry")
@@ -595,4 +610,108 @@ func render(w http.ResponseWriter, filename string, data interface{}) {
   if err := tmpl.Execute(w, data); err != nil {
     http.Error(w, err.Error(), http.StatusInternalServerError)
   }
+}
+
+//-----------------------------------//
+//---- Database Helper Functions ----//
+//-----------------------------------//
+
+func getTagID(tag string) (string, error) {
+  var result string
+
+  row := db.QueryRow("SELECT tag_id FROM tags WHERE name = $1", tag)
+  err := row.Scan(&result)
+
+  return result, err
+}
+
+func getTagName(id string) (string, error) {
+  var result string
+
+  row := db.QueryRow("SELECT name FROM tags WHERE tag_id = $1", id)
+  err := row.Scan(&result)
+
+  return result, err
+}
+
+func getWordtypeID(name string) (string, error) {
+  var result string
+
+  row := db.QueryRow("SELECT wordtype_id FROM wordtypes WHERE name = $1", name)
+  err := row.Scan(&result)
+
+  return result, err
+}
+
+func getWordtypeName(id string) (string, error) {
+  var result string
+
+  row := db.QueryRow("SELECT name FROM wordtypes WHERE wordtype_id = $1", id)
+  err := row.Scan(&result)
+
+  return result, err
+}
+
+func getLocaleID(code string) (string, error) {
+  var result string
+
+  row := db.QueryRow("SELECT lang_id FROM languages WHERE code = $1", code)
+  err := row.Scan(&result)
+
+  return result, err
+}
+
+func getLocaleCode(id string) (string, error) {
+  var result string
+
+  row := db.QueryRow("SELECT code FROM languages WHERE lang_id = $1", id)
+  err := row.Scan(&result)
+
+  return result, err
+}
+
+// Given a variadic Entry(s) with database identifiers,
+// returns list of same entries with human names instead
+func asOutgoing(entries ...*Entry) ([]*Entry, error) {
+  for _, entry := range entries {
+    wordtype, err := getWordtypeName(entry.Wordtype)
+    if err != nil {
+      return entries, err
+    }
+    headwordLanguage, err := getLocaleCode(entry.Headword_Language)
+    if err != nil {
+      return entries, err
+    }
+    definitionLanguage, err := getLocaleCode(entry.Definition_Language)
+    if err != nil {
+      return entries, err
+    }
+    entry.Wordtype = wordtype
+    entry.Headword_Language = headwordLanguage
+    entry.Definition_Language = definitionLanguage
+  }
+  return entries, nil
+}
+
+// Given a variadic Entry(s) with human names,
+// returns list of same entries with database identifiers instead
+func asIncoming(entries ...*Entry) ([]*Entry, error) {
+  for _, entry := range entries {
+    wordtype, err := getWordtypeID(entry.Wordtype)
+    if err != nil {
+      return entries, err
+    }
+    headwordLanguage, err := getLocaleID(entry.Headword_Language)
+    if err != nil {
+      return entries, err
+    }
+    definitionLanguage, err := getLocaleID(entry.Definition_Language)
+    if err != nil {
+      return entries, err
+    }
+    entry.Wordtype = wordtype
+    entry.Headword_Language = headwordLanguage
+    entry.Definition_Language = definitionLanguage
+  }
+  return entries, nil
 }
