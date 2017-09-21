@@ -18,6 +18,7 @@ import (
   "github.com/gorilla/sessions"
   "github.com/yugur/api/crypto"
   "github.com/yugur/api/util"
+  d "github.com/yugur/api/entry"
 )
 
 //---------------------------------------------------------
@@ -156,7 +157,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
       return
     }
 
-    fmt.Fprintf(w, "Entry %s created successfully (%d rows affected)\n", username, rowsAffected)
+    fmt.Fprintf(w, "d.Entry %s created successfully (%d rows affected)\n", username, rowsAffected)
   default:
     // Unsupported method
     http.Error(w, http.StatusText(405), 405)
@@ -233,7 +234,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 func searchHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case http.MethodGet:
-    var entries []*Entry
+    var entries []*d.Entry
 
     query := r.FormValue("q")
 
@@ -262,7 +263,7 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
     }
     entries = append(entries, definitionResults...)
 
-    entries = entrySet(entries...)
+    entries = d.Set(entries...)
 
     response, err := asOutgoing(entries...)
     if err != nil {
@@ -299,7 +300,7 @@ func entryHandler(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(response)
   case http.MethodPost:
     // Create a new entry
-    e := new(Entry)
+    e := new(d.Entry)
 
     err := json.NewDecoder(r.Body).Decode(&e)
     if err != nil {
@@ -307,7 +308,7 @@ func entryHandler(w http.ResponseWriter, r *http.Request) {
       break
     }
 
-    // Entry headwords cannot be nil
+    // d.Entry headwords cannot be nil
     if e.Headword == "" {
       util.Error(util.BadRequest(w, r))
       break
@@ -325,7 +326,7 @@ func entryHandler(w http.ResponseWriter, r *http.Request) {
     }
   case http.MethodPut:
     // Update an existing entry
-    e := new(Entry)
+    e := new(d.Entry)
 
     err := json.NewDecoder(r.Body).Decode(&e)
     if err != nil {
@@ -333,7 +334,7 @@ func entryHandler(w http.ResponseWriter, r *http.Request) {
       break
     }
 
-    // Entry headwords cannot be nil
+    // d.Entry headwords cannot be nil
     if e.Headword == "" {
       util.Error(util.BadRequest(w, r))
       break
@@ -405,9 +406,9 @@ func letterSearchHandler(w http.ResponseWriter, r *http.Request) {
   }
   
   defer rows.Close()
-  entries := make([]*Entry, 0)
+  entries := make([]*d.Entry, 0)
   for rows.Next() {
-    entry := new(Entry)
+    entry := new(d.Entry)
 
     err = rows.Scan(&entry.ID, &entry.Headword, &entry.Wordtype, &entry.Definition, &entry.Headword_Language, &entry.Definition_Language)
     if err != nil {
@@ -434,7 +435,7 @@ func letterSearchHandler(w http.ResponseWriter, r *http.Request) {
 func tagSearchHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case http.MethodGet:
-    var entries []*Entry
+    var entries []*d.Entry
 
     query := r.FormValue("q")
 

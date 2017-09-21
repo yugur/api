@@ -2,7 +2,8 @@
 // Use of this source code is governed by an MIT-style
 // license that can be found in the LICENSE file.
 
-package main
+// Provides a dictionary entry type and related functions and methods.
+package entry
 
 type Entry struct {
   ID         string `json:"id"`
@@ -14,7 +15,7 @@ type Entry struct {
   Definition_Language string `json:"def_lang"`
 }
 
-func entrySet(entries ...*Entry) []*Entry {
+func Set(entries ...*Entry) []*Entry {
   var set []*Entry
   for _, i := range entries {
     unique := true
@@ -29,4 +30,13 @@ func entrySet(entries ...*Entry) []*Entry {
     }
   }
   return set
+}
+
+func (e1 *Entry) Equals(e2 *Entry) bool {
+  return e1.ID                  == e2.ID &&
+         e1.Headword            == e2.Headword &&
+         e1.Wordtype            == e2.Wordtype &&
+         e1.Definition          == e2.Definition &&
+         e1.Headword_Language   == e2.Headword_Language &&
+         e1.Definition_Language == e2.Definition_Language
 }
