@@ -12,14 +12,12 @@ import (
 //---------------------------------------------------------
 
 func index() ([]*Entry, error) {
-  entries := make([]*Entry, 0)
-
   query := `SELECT *
             FROM entries`
 
   rows, err := db.Query(query)
   if err != nil {
-    return entries, err
+    return nil, err
   }
   defer rows.Close()
 
@@ -54,7 +52,7 @@ func idSearch(ids ...string) ([]*Entry, error) {
 func headwordSearch(word string) ([]*Entry, error) {
   rows, err := db.Query("SELECT * FROM entries WHERE headword = $1", word)
   if err != nil {
-    return entries, err
+    return nil, err
   }
   defer rows.Close()
 
@@ -67,7 +65,6 @@ func headwordSearch(word string) ([]*Entry, error) {
 }
 
 func tagSearch(tag string) ([]*Entry, error) {
-
   tagID, err := getTagID(tag)
   if err != nil {
     return nil, err
