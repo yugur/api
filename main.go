@@ -83,7 +83,6 @@ func main() {
   if conf.Endpoints.Random.Enable {
     mux.HandleFunc(conf.Endpoints.Random.Path, notImplemented)
   }
-  mux.HandleFunc("/letter", letterSearchHandler)
   fmt.Println("done!")
 
   fmt.Printf("The API is running at http://%s:%d/\n", conf.Host, conf.Port)

@@ -52,7 +52,15 @@ func idSearch(ids ...string) ([]*d.Entry, error) {
 }
 
 func headwordSearch(word string) ([]*d.Entry, error) {
-  rows, err := db.Query("SELECT * FROM entries WHERE headword = $1", word)
+  var query string
+  if len(word) == 1 {
+    query = `SELECT * FROM entries
+             WHERE SUBSTRING(LOWER(headword), 1, 1) = LOWER($1)`
+  } else {
+    query = `SELECT * FROM entries
+             WHERE headword = $1`
+  }
+  rows, err := db.Query(query, word)
   if err != nil {
     return nil, err
   }
@@ -62,7 +70,6 @@ func headwordSearch(word string) ([]*d.Entry, error) {
   if err != nil {
     return entries, err
   }
-
   return entries, nil
 }
 

@@ -12,7 +12,6 @@ import (
   "html/template"
   "fmt"
   "log"
-  "strings"
   "time"
 
   "github.com/gorilla/sessions"
@@ -244,24 +243,26 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
     }
     entries = append(entries, headwordResults...)
 
-    tagResults, err := tagSearch(query)
-    if err != nil {
-      tagResults = nil
-    }
-    entries = append(entries, tagResults...)
+    if len(query) > 1 {
+      tagResults, err := tagSearch(query)
+      if err != nil {
+        tagResults = nil
+      }
+      entries = append(entries, tagResults...)
 
-    wordtypeResults, err := wordtypeSearch(query)
-    if err != nil {
-      wordtypeResults = nil
-    }
-    entries = append(entries, wordtypeResults...)
+      wordtypeResults, err := wordtypeSearch(query)
+      if err != nil {
+        wordtypeResults = nil
+      }
+      entries = append(entries, wordtypeResults...)
 
-    definitionResults, err := definitionSearch(query)
-    if err != nil {
-      log.Println(err)
-      wordtypeResults = nil
+      definitionResults, err := definitionSearch(query)
+      if err != nil {
+        log.Println(err)
+        wordtypeResults = nil
+      }
+      entries = append(entries, definitionResults...)
     }
-    entries = append(entries, definitionResults...)
 
     entries = d.Set(entries...)
 
@@ -388,47 +389,6 @@ func fetchHandler(w http.ResponseWriter, r *http.Request) {
     // Unsupported method
     http.Error(w, http.StatusText(405), 405)
   }
-}
-
-// Search by letter, returns all entries starting with the requested letter
-func letterSearchHandler(w http.ResponseWriter, r *http.Request) {
-  letter := r.FormValue("q")
-  if letter == "" {
-    http.Error(w, http.StatusText(400), 400)
-    return
-  }
-  lower := strings.ToLower(letter) + "%"
-  upper := strings.ToUpper(letter) + "%"
-  rows, err := db.Query("SELECT * FROM entries WHERE headword LIKE $1 OR headword LIKE $2", lower, upper)
-  if err == sql.ErrNoRows {
-    http.NotFound(w, r)
-    return
-  }
-  
-  defer rows.Close()
-  entries := make([]*d.Entry, 0)
-  for rows.Next() {
-    entry := new(d.Entry)
-
-    err = rows.Scan(&entry.ID, &entry.Headword, &entry.Wordtype, &entry.Definition, &entry.Headword_Language, &entry.Definition_Language)
-    if err != nil {
-      http.Error(w, http.StatusText(500), 500)
-      return
-    }
-    entries = append(entries, entry)
-  }
-  if err = rows.Err(); err != nil {
-    http.Error(w, http.StatusText(500), 500)
-    return
-  }
-
-  response, err := asOutgoing(entries...)
-  if err != nil {
-    util.Error(util.Internal(w, r))
-    return
-  }
-
-  json.NewEncoder(w).Encode(response)
 }
 
 // Search by category, returns all entries associated with the requested tag
