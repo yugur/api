@@ -11,6 +11,11 @@ import (
   "encoding/json"
 )
 
+type Endpoint struct {
+  Path   string `json:"path"`
+  Enable bool   `json:"enable"`
+}
+
 // Configuration values
 type Values struct {
   Database struct {
@@ -20,11 +25,24 @@ type Values struct {
     Password string `json:"password"`
     Name     string `json:"name"`
   }
+
   Host     string `json:"host"`
-  Port     string `json:"port"`
+  Port     int    `json:"port"`
   Keystore string `json:"keystore"`
   CORS     bool   `json:"cors"`
   Verbose  bool   `json:"verbose"`
+
+  Endpoints struct {
+    Index    Endpoint
+    Status   Endpoint
+    Search   Endpoint
+    Entry    Endpoint
+    Register Endpoint
+    Login    Endpoint
+    Tag      Endpoint
+    Fetch    Endpoint
+    Random   Endpoint
+  }
 }
 
 // Demarshals the provided JSON object into a Values struct

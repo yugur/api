@@ -55,30 +55,49 @@ func init() {
 func main() {
   fmt.Print("Initialising mux...")
   mux := http.NewServeMux()
-  mux.HandleFunc("/", indexHandler)
-  mux.HandleFunc("/register", registerHandler)
-  mux.HandleFunc("/login", loginHandler)
-  mux.HandleFunc("/status", statusHandler)
-  mux.HandleFunc("/entry", entryHandler)
-  mux.HandleFunc("/fetch", fetchHandler)
+
+  if conf.Endpoints.Index.Enable {
+    mux.HandleFunc(conf.Endpoints.Index.Path, indexHandler)
+  }
+  if conf.Endpoints.Status.Enable {
+    mux.HandleFunc(conf.Endpoints.Status.Path, statusHandler)
+  }
+  if conf.Endpoints.Search.Enable {
+    mux.HandleFunc(conf.Endpoints.Search.Path, searchHandler)
+  }
+  if conf.Endpoints.Entry.Enable {
+    mux.HandleFunc(conf.Endpoints.Entry.Path, entryHandler)
+  }
+  if conf.Endpoints.Register.Enable {
+    mux.HandleFunc(conf.Endpoints.Register.Path, registerHandler)
+  }
+  if conf.Endpoints.Login.Enable {
+    mux.HandleFunc(conf.Endpoints.Login.Path, loginHandler)
+  }
+  if conf.Endpoints.Tag.Enable {
+    mux.HandleFunc(conf.Endpoints.Tag.Path, tagSearchHandler)
+  }
+  if conf.Endpoints.Fetch.Enable {
+    mux.HandleFunc(conf.Endpoints.Fetch.Path, fetchHandler)
+  }
+  if conf.Endpoints.Random.Enable {
+    mux.HandleFunc(conf.Endpoints.Random.Path, notImplemented)
+  }
   mux.HandleFunc("/letter", letterSearchHandler)
-  mux.HandleFunc("/tag", tagSearchHandler)
-  mux.HandleFunc("/search", searchHandler)
-  mux.HandleFunc("/random", notImplemented)
   fmt.Println("done!")
 
-  fmt.Println("Listening on port " + conf.Port + "...")
+  fmt.Printf("The API is running at http://%s:%d/\n", conf.Host, conf.Port)
   if conf.CORS {
     headersOk := handlers.AllowedHeaders([]string{"X-Requested-With"})
     originsOk := handlers.AllowedOrigins([]string{"*"})
     methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"})
 
-    err := http.ListenAndServe(":" + conf.Port, handlers.CORS(originsOk, headersOk, methodsOk)(mux))
+    err := http.ListenAndServe(fmt.Sprintf(":%d", conf.Port), handlers.CORS(originsOk, headersOk, methodsOk)(mux))
     if err != nil {
       log.Fatal("ListenAndServe: ", err)
     }
   } else {
-    err := http.ListenAndServe(":" + conf.Port, handlers.LoggingHandler(os.Stdout, mux))
+    err := http.ListenAndServe(fmt.Sprintf(":%d", conf.Port), handlers.LoggingHandler(os.Stdout, mux))
     if err != nil {
       log.Fatal("ListenAndServe: ", err)
     }
