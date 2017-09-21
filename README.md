@@ -62,7 +62,7 @@ $ sudo apt-get install postgresql postgresql-contrib
 
 #### API configuration
 
-It is recommended that you customise the database options contained in [config/config.json](https://github.com/yugur/api/blob/master/config/config.json). Nevertheless the instructions will assume default settings which will otherwise set you up with a new Linux user `yugur` and corresponding psql role and database.
+It is recommended that you customise the database options contained in [config/config.json](config/config.json). Nevertheless the instructions will assume default settings which will otherwise set you up with a new Linux user `yugur` and corresponding psql role and database.
 
 #### Compiling source
 
@@ -72,7 +72,7 @@ If you're familiar with Go this should be straightforward.
 $ go install github.com/yugur/api
 ```
 
-Note that the API expects to find [config/config.json](https://github.com/yugur/api/blob/master/config/config.json) in its directory so you will need to move that with it. We will also be needing [scripts/](https://github.com/yugur/api/tree/master/scripts) so copy that over too.
+Note that the API expects to find [config/config.json](config/config.json) in its directory so you will need to move that with it. We will also be needing [scripts/](scripts) so copy that over too.
 
 ```
 $ mkdir ~/yugur-api
@@ -167,7 +167,7 @@ TBD
 
 * **Nicholas Brown** - [@nicholasbrown](https://github.com/nicholasbrown)
 
-See also the list of [contributors](https://github.com/yugur/api/CONTRIBUTORS.md) that have participated in the project.
+See also the list of [contributors](CONTRIBUTORS.md) that have participated in the project.
 
 ## License
 
