@@ -1,9 +1,10 @@
 {
 	"database": {
 		"host":     "localhost",
-		"user":     "postgres",
-		"password": "postgres",
-		"database": "yugur"
+		"port":     5432,
+		"user":     "yugur",
+		"password": "yugur",
+		"name":     "yugur"
 	},
 	"host": "localhost",
 	"port": "8080",

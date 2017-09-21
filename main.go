@@ -1,4 +1,4 @@
-// Copyright 2017 The Yugur.io Authors. All rights reserved.
+// Copyright 2017 The Yugur RESTful API Authors. All rights reserved.
 // Use of this source code is governed by an MIT-style
 // license that can be found in the LICENSE file.
 
@@ -32,11 +32,16 @@ func init() {
   fmt.Println("done!")
 
   fmt.Print("Preparing database...")
-  db, err = sql.Open("postgres", "postgres://" +
-    conf.Database.User     + ":" + 
-    conf.Database.Password + "@" +
-    conf.Database.Host     + "/" +
-    conf.Database.Database)
+  psqlInfo := fmt.Sprintf(
+    "host=%s port=%d user=%s " + 
+    "password=%s dbname=%s sslmode=disable",
+    conf.Database.Host,
+    conf.Database.Port,
+    conf.Database.User,
+    conf.Database.Password,
+    conf.Database.Name)
+
+  db, err = sql.Open("postgres", psqlInfo)
   if err != nil {
     log.Fatal(err)
   }

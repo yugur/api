@@ -1,4 +1,4 @@
-// Copyright 2017 The Yugur.io Authors. All rights reserved.
+// Copyright 2017 The Yugur RESTful API Authors. All rights reserved.
 // Use of this source code is governed by an MIT-style
 // license that can be found in the LICENSE file.
 
@@ -15,9 +15,10 @@ import (
 type Values struct {
   Database struct {
     Host     string `json:"host"`
+    Port     int    `json:"port"`
     User     string `json:"user"`
     Password string `json:"password"`
-    Database string `json:"database"`
+    Name     string `json:"name"`
   }
   Host     string `json:"host"`
   Port     string `json:"port"`
@@ -29,8 +30,7 @@ type Values struct {
 // Demarshals the provided JSON object into a Values struct
 func Load(file string) (config Values, err error) {
   var conf Values
-  pwd, _ := os.Getwd()
-  configFile, err := os.Open(pwd+"/"+file)
+  configFile, err := os.Open(file)
   defer configFile.Close()
   if err != nil {
     log.Fatal(err)
