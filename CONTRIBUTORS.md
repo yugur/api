@@ -1,0 +1,1 @@
+[@alexlawrence9](https://github.com/alexlawrence9) - Early letter and tag search endpoints.

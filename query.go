@@ -1,4 +1,4 @@
-// Copyright 2017 The Yugur.io Authors. All rights reserved.
+// Copyright 2017 The Yugur RESTful API Authors. All rights reserved.
 // Use of this source code is governed by an MIT-style
 // license that can be found in the LICENSE file.
 
@@ -6,12 +6,14 @@ package main
 
 import (
   "database/sql"
+
+  d "github.com/yugur/api/entry"
 )
 //---------------------------------------------------------
 //---- Search Queries
 //---------------------------------------------------------
 
-func index() ([]*Entry, error) {
+func index() ([]*d.Entry, error) {
   query := `SELECT *
             FROM entries`
 
@@ -31,12 +33,12 @@ func index() ([]*Entry, error) {
 
 // idSearch returns the matching entries for each id.
 // Raises sql.ErrNoRows if there is no matching entry for any provided id.
-func idSearch(ids ...string) ([]*Entry, error) {
+func idSearch(ids ...string) ([]*d.Entry, error) {
   var errNoRows error
-  entries := make([]*Entry, 0)
+  entries := make([]*d.Entry, 0)
 
   for _, id := range ids {
-    e := new(Entry)
+    e := new(d.Entry)
 
     row := db.QueryRow("SELECT * FROM entries WHERE entry_id = $1", id)
     err := row.Scan(&e.ID, &e.Headword, &e.Wordtype, &e.Definition, &e.Headword_Language, &e.Definition_Language)
@@ -49,8 +51,16 @@ func idSearch(ids ...string) ([]*Entry, error) {
   return entries, errNoRows
 }
 
-func headwordSearch(word string) ([]*Entry, error) {
-  rows, err := db.Query("SELECT * FROM entries WHERE headword = $1", word)
+func headwordSearch(word string) ([]*d.Entry, error) {
+  var query string
+  if len(word) == 1 {
+    query = `SELECT * FROM entries
+             WHERE SUBSTRING(LOWER(headword), 1, 1) = LOWER($1)`
+  } else {
+    query = `SELECT * FROM entries
+             WHERE headword = $1`
+  }
+  rows, err := db.Query(query, word)
   if err != nil {
     return nil, err
   }
@@ -60,11 +70,10 @@ func headwordSearch(word string) ([]*Entry, error) {
   if err != nil {
     return entries, err
   }
-
   return entries, nil
 }
 
-func tagSearch(tag string) ([]*Entry, error) {
+func tagSearch(tag string) ([]*d.Entry, error) {
   tagID, err := getTagID(tag)
   if err != nil {
     return nil, err
@@ -84,7 +93,7 @@ func tagSearch(tag string) ([]*Entry, error) {
   return entries, nil
 }
 
-func wordtypeSearch(wordtype string) ([]*Entry, error) {
+func wordtypeSearch(wordtype string) ([]*d.Entry, error) {
   id, err := getWordtypeID(wordtype)
   if err != nil {
     return nil, err
@@ -106,7 +115,7 @@ func wordtypeSearch(wordtype string) ([]*Entry, error) {
   return entries, nil
 }
 
-func definitionSearch(token string) ([]*Entry, error) {
+func definitionSearch(token string) ([]*d.Entry, error) {
   if token == "" {
     return nil, nil
   }
@@ -131,7 +140,7 @@ func definitionSearch(token string) ([]*Entry, error) {
 //---- Executable Queries
 //---------------------------------------------------------
 
-func insertEntry(entries ...*Entry) (int64, error) {
+func insertEntry(entries ...*d.Entry) (int64, error) {
   var rowsAffected int64
   for _, entry := range entries {
     var query string
@@ -252,9 +261,9 @@ func getLocaleCode(id string) (string, error) {
   return result, err
 }
 
-// Given a variadic Entry(s) with database identifiers,
+// Given a variadic d.Entry(s) with database identifiers,
 // returns list of same entries with human names instead
-func asOutgoing(entries ...*Entry) ([]*Entry, error) {
+func asOutgoing(entries ...*d.Entry) ([]*d.Entry, error) {
   for _, entry := range entries {
     wordtype, err := getWordtypeName(entry.Wordtype)
     if err != nil {
@@ -275,9 +284,9 @@ func asOutgoing(entries ...*Entry) ([]*Entry, error) {
   return entries, nil
 }
 
-// Given a variadic Entry(s) with human names,
+// Given a variadic d.Entry(s) with human names,
 // returns list of same entries with database identifiers instead
-func asIncoming(entries ...*Entry) ([]*Entry, error) {
+func asIncoming(entries ...*d.Entry) ([]*d.Entry, error) {
   for _, entry := range entries {
     wordtype, err := getWordtypeID(entry.Wordtype)
     if err != nil {
@@ -298,11 +307,11 @@ func asIncoming(entries ...*Entry) ([]*Entry, error) {
   return entries, nil
 }
 
-func scanRows(rows *sql.Rows) ([]*Entry, error) {
-  var entries []*Entry
+func scanRows(rows *sql.Rows) ([]*d.Entry, error) {
+  var entries []*d.Entry
 
   for rows.Next() {
-    entry := new(Entry)
+    entry := new(d.Entry)
 
     err := rows.Scan(
       &entry.ID,

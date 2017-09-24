@@ -1,13 +1,52 @@
 {
 	"database": {
 		"host":     "localhost",
-		"user":     "postgres",
-		"password": "postgres",
-		"database": "yugur"
+		"port":     5432,
+		"user":     "yugur",
+		"password": "yugur",
+		"name":     "yugur"
 	},
 	"host": "localhost",
-	"port": "8080",
+	"port": 8080,
 	"cors": true,
 	"keystore": "my-super-secret-key",
-	"verbose": true
+	"verbose": true,
+	"endpoints": {
+		"index": {
+			"path":   "/",
+			"enable": true
+		},
+		"status": {
+			"path":   "/status",
+			"enable": true
+		},
+		"search": {
+			"path":   "/search",
+			"enable": true
+		},
+		"entry": {
+			"path":   "/entry",
+			"enable": true
+		},
+		"register": {
+			"path":   "/register",
+			"enable": true
+		},
+		"login": {
+			"path":   "/login",
+			"enable": true
+		},
+		"tag": {
+			"path":   "/tag",
+			"enable": true
+		},
+		"fetch": {
+			"path":   "/fetch",
+			"enable": true
+		},
+		"random": {
+			"path":   "/random",
+			"enable": true
+		}
+	}
 }

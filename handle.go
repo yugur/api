@@ -1,4 +1,4 @@
-// Copyright 2017 The Yugur.io Authors. All rights reserved.
+// Copyright 2017 The Yugur RESTful API Authors. All rights reserved.
 // Use of this source code is governed by an MIT-style
 // license that can be found in the LICENSE file.
 
@@ -12,12 +12,12 @@ import (
   "html/template"
   "fmt"
   "log"
-  "strings"
   "time"
 
   "github.com/gorilla/sessions"
   "github.com/yugur/api/crypto"
   "github.com/yugur/api/util"
+  d "github.com/yugur/api/entry"
 )
 
 //---------------------------------------------------------
@@ -156,7 +156,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
       return
     }
 
-    fmt.Fprintf(w, "Entry %s created successfully (%d rows affected)\n", username, rowsAffected)
+    fmt.Fprintf(w, "d.Entry %s created successfully (%d rows affected)\n", username, rowsAffected)
   default:
     // Unsupported method
     http.Error(w, http.StatusText(405), 405)
@@ -233,7 +233,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 func searchHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case http.MethodGet:
-    var entries []*Entry
+    var entries []*d.Entry
 
     query := r.FormValue("q")
 
@@ -243,26 +243,28 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
     }
     entries = append(entries, headwordResults...)
 
-    tagResults, err := tagSearch(query)
-    if err != nil {
-      tagResults = nil
-    }
-    entries = append(entries, tagResults...)
+    if len(query) > 1 {
+      tagResults, err := tagSearch(query)
+      if err != nil {
+        tagResults = nil
+      }
+      entries = append(entries, tagResults...)
 
-    wordtypeResults, err := wordtypeSearch(query)
-    if err != nil {
-      wordtypeResults = nil
-    }
-    entries = append(entries, wordtypeResults...)
+      wordtypeResults, err := wordtypeSearch(query)
+      if err != nil {
+        wordtypeResults = nil
+      }
+      entries = append(entries, wordtypeResults...)
 
-    definitionResults, err := definitionSearch(query)
-    if err != nil {
-      log.Println(err)
-      wordtypeResults = nil
+      definitionResults, err := definitionSearch(query)
+      if err != nil {
+        log.Println(err)
+        wordtypeResults = nil
+      }
+      entries = append(entries, definitionResults...)
     }
-    entries = append(entries, definitionResults...)
 
-    entries = entrySet(entries...)
+    entries = d.Set(entries...)
 
     response, err := asOutgoing(entries...)
     if err != nil {
@@ -299,7 +301,7 @@ func entryHandler(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(response)
   case http.MethodPost:
     // Create a new entry
-    e := new(Entry)
+    e := new(d.Entry)
 
     err := json.NewDecoder(r.Body).Decode(&e)
     if err != nil {
@@ -307,7 +309,7 @@ func entryHandler(w http.ResponseWriter, r *http.Request) {
       break
     }
 
-    // Entry headwords cannot be nil
+    // d.Entry headwords cannot be nil
     if e.Headword == "" {
       util.Error(util.BadRequest(w, r))
       break
@@ -325,7 +327,7 @@ func entryHandler(w http.ResponseWriter, r *http.Request) {
     }
   case http.MethodPut:
     // Update an existing entry
-    e := new(Entry)
+    e := new(d.Entry)
 
     err := json.NewDecoder(r.Body).Decode(&e)
     if err != nil {
@@ -333,7 +335,7 @@ func entryHandler(w http.ResponseWriter, r *http.Request) {
       break
     }
 
-    // Entry headwords cannot be nil
+    // d.Entry headwords cannot be nil
     if e.Headword == "" {
       util.Error(util.BadRequest(w, r))
       break
@@ -389,52 +391,11 @@ func fetchHandler(w http.ResponseWriter, r *http.Request) {
   }
 }
 
-// Search by letter, returns all entries starting with the requested letter
-func letterSearchHandler(w http.ResponseWriter, r *http.Request) {
-  letter := r.FormValue("q")
-  if letter == "" {
-    http.Error(w, http.StatusText(400), 400)
-    return
-  }
-  lower := strings.ToLower(letter) + "%"
-  upper := strings.ToUpper(letter) + "%"
-  rows, err := db.Query("SELECT * FROM entries WHERE headword LIKE $1 OR headword LIKE $2", lower, upper)
-  if err == sql.ErrNoRows {
-    http.NotFound(w, r)
-    return
-  }
-  
-  defer rows.Close()
-  entries := make([]*Entry, 0)
-  for rows.Next() {
-    entry := new(Entry)
-
-    err = rows.Scan(&entry.ID, &entry.Headword, &entry.Wordtype, &entry.Definition, &entry.Headword_Language, &entry.Definition_Language)
-    if err != nil {
-      http.Error(w, http.StatusText(500), 500)
-      return
-    }
-    entries = append(entries, entry)
-  }
-  if err = rows.Err(); err != nil {
-    http.Error(w, http.StatusText(500), 500)
-    return
-  }
-
-  response, err := asOutgoing(entries...)
-  if err != nil {
-    util.Error(util.Internal(w, r))
-    return
-  }
-
-  json.NewEncoder(w).Encode(response)
-}
-
 // Search by category, returns all entries associated with the requested tag
 func tagSearchHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case http.MethodGet:
-    var entries []*Entry
+    var entries []*d.Entry
 
     query := r.FormValue("q")
 
