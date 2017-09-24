@@ -60,6 +60,7 @@ INSERT INTO wordtypes (name) VALUES
 	('adjective');
 
 INSERT INTO tags (name) VALUES
+	('fire'),
 	('flame'),
 	('blaze'),
 	('passion'),
@@ -67,9 +68,9 @@ INSERT INTO tags (name) VALUES
 
 INSERT INTO entries (headword, wordtype, definition, hw_lang, def_lang) VALUES
 	('fire', (SELECT wordtype_id FROM wordtypes WHERE name='noun'), 'Burning fuel or other material: a cooking fire; a forest fire.', (SELECT lang_id FROM languages WHERE code='en-AU'), (SELECT lang_id FROM languages WHERE code='en-AU')),
-	('fire', (SELECT wordtype_id FROM wordtypes WHERE name='noun'), 'Burning intensity of feeling; ardor.', (SELECT lang_id FROM languages WHERE code='en-AU'), (SELECT lang_id FROM languages WHERE code='en-AU'));
+	('fire', (SELECT wordtype_id FROM wordtypes WHERE name='noun'), 'Burning intensity of feeling; ardor.', (SELECT lang_id FROM languages WHERE code='en-AU'), (SELECT lang_id FROM languages WHERE code='en-AU')),
+	('zeal', (SELECT wordtype_id FROM wordtypes WHERE name='noun'), 'great energy or enthusiasm in pursuit of a cause or an objective.', (SELECT lang_id FROM languages WHERE code='en-AU'), (SELECT lang_id FROM languages WHERE code='en-AU'));
 
--- add 'flame' tag to all entries with the headword 'fire'
 INSERT INTO
 	entry_tags (tag_id, entry_id)
 SELECT
@@ -92,5 +93,30 @@ CROSS JOIN
       entries
     WHERE
       headword='fire'
+  ) AS e
+;
+
+INSERT INTO
+	entry_tags (tag_id, entry_id)
+SELECT
+  t.tag_id,
+  e.entry_id
+FROM
+  (
+    SELECT
+      tag_id
+    FROM
+      tags
+    WHERE
+      name='fire'
+  ) AS t
+CROSS JOIN
+  (
+    SELECT
+      entry_id
+    FROM
+      entries
+    WHERE
+      headword='zeal'
   ) AS e
 ;

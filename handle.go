@@ -14,11 +14,15 @@ import (
   "log"
   "strings"
   "time"
-  "strconv"
 
   "github.com/gorilla/sessions"
   "github.com/yugur/api/crypto"
+  "github.com/yugur/api/util"
 )
+
+//---------------------------------------------------------
+//---- Database Structs
+//---------------------------------------------------------
 
 type User struct {
   UID      string `json:"uid"`
@@ -26,29 +30,26 @@ type User struct {
   Hash     string `json:"hash"`
 }
 
-type Entry struct {
-  ID         string `json:"id"`
-  Headword   string `json:"headword"`
-  Wordtype   string `json:"wordtype"`
-  Definition string `json:"definition"`
-
-  Headword_Language   string `json:"hw_lang"`
-  Definition_Language string `json:"def_lang"`
-}
-
 type Tag struct {
+  ID       string    `json:"id"`
   Name     string `json:"name"`
-  Tag_Id   int    `json:"tag_id"`
-  Entry_Id int    `json:"entry_id"`
 }
 
 var store = sessions.NewCookieStore([]byte(conf.Keystore))
+
+//---------------------------------------------------------
+//---- Endpoint Handlers
+//---------------------------------------------------------
+
+//----
+//---- General Handlers
+//----
 
 // statusHandler may be used to confirm the server's current status.
 func statusHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case http.MethodGet:
-    w.Write([]byte("OK\n"))
+    return
   default:
     // Unsupported method
     http.Error(w, http.StatusText(405), 405)
@@ -66,7 +67,7 @@ func notImplemented(w http.ResponseWriter, r *http.Request) {
   }
 }
 
-// indexHandler serves the root page.
+// indexHandler serves the root page. Can be ignored if you bring your own front end.
 func indexHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case http.MethodGet:
@@ -91,6 +92,10 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
     http.Error(w, http.StatusText(405), 405)
   }
 }
+
+//----
+//---- User Authentication
+//----
 
 /* 
   registerHandler is responsible for dealing with user registration.
@@ -125,7 +130,6 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
     err = db.QueryRow("SELECT 1 FROM users WHERE username = $1", username).Scan(&exists)
     if err != nil && err != sql.ErrNoRows {
       fmt.Fprintf(w, "User %s already exists.\n", username)
-      //http.Redirect(w, r, "/", http.StatusSeeOther)
       return
     }
 
@@ -221,162 +225,142 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
   }
 }
 
-// Given a query, this handler will attempt to return a collection
-// of dictionary entries relevant to that query.
+//----
+//---- Dictionary Handlers
+//----
+
+// searchHandler returns a collection of unique entries given some query 'q'.
 func searchHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case http.MethodGet:
+    var entries []*Entry
+
     query := r.FormValue("q")
 
-    rows, err := db.Query("SELECT * FROM entries WHERE headword = $1", query)
+    headwordResults, err := headwordSearch(query)
     if err != nil {
-      if err == sql.ErrNoRows {
-        http.NotFound(w, r)
-        return
-      } else {
-        http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-        return
-      }
+      headwordResults = nil
     }
+    entries = append(entries, headwordResults...)
 
-    defer rows.Close()
-    entries := make([]*Entry, 0)
-    for rows.Next() {
-      entry := new(Entry)
-
-      err = rows.Scan(&entry.ID, &entry.Headword, &entry.Wordtype, &entry.Definition, &entry.Headword_Language, &entry.Definition_Language)
-      if err != nil {
-        http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-        return
-      }
-      entries = append(entries, entry)
+    tagResults, err := tagSearch(query)
+    if err != nil {
+      tagResults = nil
     }
-    if err = rows.Err(); err != nil {
-      http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+    entries = append(entries, tagResults...)
+
+    wordtypeResults, err := wordtypeSearch(query)
+    if err != nil {
+      wordtypeResults = nil
+    }
+    entries = append(entries, wordtypeResults...)
+
+    definitionResults, err := definitionSearch(query)
+    if err != nil {
+      log.Println(err)
+      wordtypeResults = nil
+    }
+    entries = append(entries, definitionResults...)
+
+    entries = entrySet(entries...)
+
+    response, err := asOutgoing(entries...)
+    if err != nil {
+      util.Error(util.Internal(w, r))
       return
     }
-    json.NewEncoder(w).Encode(entries)
+    
+    json.NewEncoder(w).Encode(response)
   default:
     // Unsupported method
     http.Error(w, http.StatusText(405), 405)
   }
 }
 
-// entryHandler is responsible for serving, adding, updating and removing
-// entries from the dictionary database.
+// entryHandler provides Create, Read, Update and Delete access to entries.
 func entryHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case http.MethodGet:
     // Serve the entry
-    id, err := strconv.ParseInt(r.FormValue("q"), 10, 64)
+    query := r.FormValue("q")
+
+    entry, err := idSearch(query)
     if err != nil {
-      http.Error(w, http.StatusText(400), 400)
-      return
+      util.Error(util.NotFound(w, r))
+      break
     }
 
-    row := db.QueryRow("SELECT * FROM entries WHERE entry_id = $1", id)
-
-    entry := new(Entry)
-    err = row.Scan(&entry.ID, &entry.Headword, &entry.Wordtype, &entry.Definition, &entry.Headword_Language, &entry.Definition_Language)
-    if err == sql.ErrNoRows {
-      http.NotFound(w, r)
-      return
-    } else if err != nil {
-      log.Printf(err.Error())
-      http.Error(w, http.StatusText(500), 500)
-      return
+    response, err := asOutgoing(entry...)
+    if err != nil {
+      util.Error(util.Internal(w, r))
+      break
     }
-
-    json.NewEncoder(w).Encode(entry)
-
+    
+    json.NewEncoder(w).Encode(response)
   case http.MethodPost:
     // Create a new entry
-    var e Entry
-
-    if r.Body == nil {
-      http.Error(w, http.StatusText(400), 400)
-      return
-    }
+    e := new(Entry)
 
     err := json.NewDecoder(r.Body).Decode(&e)
     if err != nil {
-      http.Error(w, err.Error(), 400)
-      return
+      util.Error(util.BadRequest(w, r))
+      break
     }
 
+    // Entry headwords cannot be nil
     if e.Headword == "" {
-      http.Error(w, http.StatusText(400), 400)
-      return
+      util.Error(util.BadRequest(w, r))
+      break
     }
 
-    result, err := db.Exec("INSERT INTO entries (headword, wordtype, definition, hw_lang, def_lang) VALUES($1, $2, $3, $4, $5)", e.Headword, e.Wordtype, e.Definition, e.Headword_Language, e.Definition_Language)
+    request, err := asIncoming(e)
     if err != nil {
-      log.Printf(err.Error())
-      http.Error(w, http.StatusText(500), 500)
-      return
+      util.Error(util.BadRequest(w, r))
+      break
     }
 
-    rowsAffected, err := result.RowsAffected()
+    _, err = insertEntry(request...)
     if err != nil {
-      http.Error(w, http.StatusText(500), 500)
-      return
+      util.Error(util.BadRequest(w, r))
     }
-
-    fmt.Fprintf(w, "Entry %s created successfully (%d rows affected)\n", e.Headword, rowsAffected)
   case http.MethodPut:
     // Update an existing entry
-    var e Entry
-
-    if r.Body == nil {
-      http.Error(w, http.StatusText(400), 400)
-      return
-    }
+    e := new(Entry)
 
     err := json.NewDecoder(r.Body).Decode(&e)
     if err != nil {
-      http.Error(w, err.Error(), 400)
-      return
+      util.Error(util.BadRequest(w, r))
+      break
     }
 
+    // Entry headwords cannot be nil
     if e.Headword == "" {
-      http.Error(w, http.StatusText(400), 400)
-      return
+      util.Error(util.BadRequest(w, r))
+      break
     }
 
-    result, err := db.Exec("UPDATE entries SET (headword, wordtype, definition, hw_lang, def_lang) = ($2, $3, $4, $5, $6) WHERE entry_id = $1", e.ID, e.Headword, e.Wordtype, e.Definition, e.Headword_Language, e.Definition_Language)
+    request, err := asIncoming(e)
     if err != nil {
-      http.Error(w, http.StatusText(500), 500)
-      return
+      util.Error(util.BadRequest(w, r))
+      break
     }
 
-    rowsAffected, err := result.RowsAffected()
+    _, err = insertEntry(request...)
     if err != nil {
-      http.Error(w, http.StatusText(500), 500)
-      return
+      util.Error(util.BadRequest(w, r))
     }
-
-    fmt.Fprintf(w, "Entry %s updated successfully (%d rows affected)\n", e.Headword, rowsAffected)
   case http.MethodDelete:
     // Remove an existing entry
-    id := r.FormValue("q")
-    if id == "" {
-      http.Error(w, http.StatusText(400), 400)
-      return
+    query := r.FormValue("q")
+    if query == "" {
+      util.Error(util.BadRequest(w, r))
+      break
     }
 
-    result, err := db.Exec("DELETE FROM entries WHERE entry_id = $1", id)
+    _, err := deleteEntry(query)
     if err != nil {
-      http.Error(w, http.StatusText(500), 500)
-      return
+      util.Error(util.Internal(w, r))
     }
-
-    rowsAffected, err := result.RowsAffected()
-    if err != nil {
-      http.Error(w, http.StatusText(500), 500)
-      return
-    }
-
-    fmt.Fprintf(w, "Entry %s deleted successfully (%d rows affected)\n", id, rowsAffected)
   default:
     // Unsupported method
     http.Error(w, http.StatusText(405), 405)
@@ -387,29 +371,18 @@ func entryHandler(w http.ResponseWriter, r *http.Request) {
 func fetchHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case http.MethodGet:
-    rows, err := db.Query("SELECT * FROM entries")
+    entries, err := index()
     if err != nil {
-      http.Error(w, http.StatusText(500), 500)
-      return
+      util.Error(util.Internal(w, r))
     }
-    defer rows.Close()
 
-    entries := make([]*Entry, 0)
-    for rows.Next() {
-      entry := new(Entry)
-      err := rows.Scan(&entry.ID, &entry.Headword, &entry.Wordtype, &entry.Definition, &entry.Headword_Language, &entry.Definition_Language)
-      if err != nil {
-        http.Error(w, http.StatusText(500), 500)
-        return
-      }
-      entries = append(entries, entry)
-    }
-    if err = rows.Err(); err != nil {
-      http.Error(w, http.StatusText(500), 500)
+    response, err := asOutgoing(entries...)
+    if err != nil {
+      util.Error(util.Internal(w, r))
       return
     }
 
-    json.NewEncoder(w).Encode(entries)
+    json.NewEncoder(w).Encode(response)
   default:
     // Unsupported method
     http.Error(w, http.StatusText(405), 405)
@@ -447,62 +420,46 @@ func letterSearchHandler(w http.ResponseWriter, r *http.Request) {
     http.Error(w, http.StatusText(500), 500)
     return
   }
-  json.NewEncoder(w).Encode(entries)
+
+  response, err := asOutgoing(entries...)
+  if err != nil {
+    util.Error(util.Internal(w, r))
+    return
+  }
+
+  json.NewEncoder(w).Encode(response)
 }
 
 // Search by category, returns all entries associated with the requested tag
 func tagSearchHandler(w http.ResponseWriter, r *http.Request) {
   switch r.Method {
   case http.MethodGet:
-    id := r.FormValue("q")
-    if id == "" {
-      http.Error(w, http.StatusText(400), 400)
-      return
-    }
-    rows, err := db.Query("SELECT entries.entry_id, entries.headword, entries.wordtype, entries.definition, entries.hw_lang, entries.def_lang FROM (SELECT * FROM entry_tags WHERE tag_id = $1) AS entry_tags JOIN entries ON entry_tags.entry_id = entries.entry_id", id)    
-    if err == sql.ErrNoRows {
-      http.NotFound(w, r)
-      return
-    }
-      
-    defer rows.Close()
-    entries := make([]*Entry, 0)
-    for rows.Next() {
-      entry := new(Entry)
+    var entries []*Entry
 
-      err = rows.Scan(&entry.ID, &entry.Headword, &entry.Wordtype, &entry.Definition, &entry.Headword_Language, &entry.Definition_Language)
-      if err != nil {
-        http.Error(w, http.StatusText(500), 500)
-        return
-      }
-      entries = append(entries, entry)
+    query := r.FormValue("q")
+
+    entries, err := tagSearch(query)
+    if err != nil {
+      entries = nil
     }
-    if err = rows.Err(); err != nil {
-      http.Error(w, http.StatusText(500), 500)
+
+    response, err := asOutgoing(entries...)
+    if err != nil {
+      util.Error(util.Internal(w, r))
       return
     }
-    json.NewEncoder(w).Encode(entries)
+    
+    json.NewEncoder(w).Encode(response)
   case http.MethodPost:
     // Add a new tag relationship
-    var t Tag
-
-    if r.Body == nil {
-      http.Error(w, http.StatusText(400), 400)
-      return
-    }
-
-    err := json.NewDecoder(r.Body).Decode(&t)
+    entryID := r.FormValue("entry")
+    tagID, err := getTagID(r.FormValue("tag"))
     if err != nil {
-      http.Error(w, err.Error(), 400)
-      return
-    }
-
-    if t.Name == "" {
       http.Error(w, http.StatusText(400), 400)
       return
     }
 
-    result, err := db.Exec("INSERT INTO entry_tags VALUES($1, $2)", t.Tag_Id, t.Entry_Id)
+    result, err := db.Exec("INSERT INTO entry_tags VALUES($1, $2)", tagID, entryID)
     if err != nil {
       http.Error(w, http.StatusText(500), 500)
       return
@@ -513,17 +470,17 @@ func tagSearchHandler(w http.ResponseWriter, r *http.Request) {
       http.Error(w, http.StatusText(500), 500)
       return
     }
-    fmt.Fprintf(w, "Tag Id %d added to entry %d successfully (%d rows affected)\n", t.Tag_Id, t.Entry_Id, rowsAffected) 
+    fmt.Fprintf(w, "Tag Id %d added to entry %d successfully (%d rows affected)\n", tagID, entryID, rowsAffected) 
   case http.MethodDelete:
     // Remove a tag relationship
-    tag_id := r.FormValue("tag_id")
-    entry_id := r.FormValue("entry_id")
-    if tag_id == "" || entry_id == ""  {
+    entryID := r.FormValue("entry")
+    tagID, err := getTagID(r.FormValue("tag"))
+    if err != nil {
       http.Error(w, http.StatusText(400), 400)
       return
     }
 
-    result, err := db.Exec("DELETE FROM entry_tags WHERE tag_id = $1 AND entry_id = $2", tag_id, entry_id)
+    result, err := db.Exec("DELETE FROM entry_tags WHERE tag_id = $1 AND entry_id = $2", tagID, entryID)
     if err != nil {
       http.Error(w, http.StatusText(500), 500)
       return
@@ -536,12 +493,16 @@ func tagSearchHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     if (rowsAffected == 0) {
-      fmt.Fprintf(w, "Tag %s doesn't exist (%d rows affected)\n", tag_id, rowsAffected)
+      fmt.Fprintf(w, "Tag %s doesn't exist in entry %s (%d rows affected)\n", tagID, entryID, rowsAffected)
     } else {
-      fmt.Fprintf(w, "Tag %s deleted successfully (%d rows affected)\n", tag_id, rowsAffected);
+      fmt.Fprintf(w, "Tag %s deleted successfully from entry %s (%d rows affected)\n", tagID, entryID, rowsAffected);
     }
   }
 }
+
+//---------------------------------------------------------
+//---- HTTP Helper Functions
+//---------------------------------------------------------
 
 // render uses html/template to serve a template page.
 func render(w http.ResponseWriter, filename string, data interface{}) {

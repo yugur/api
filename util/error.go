@@ -11,26 +11,73 @@ import (
 )
 
 const (
-	FatalError = "FatalError"
-	InternalError = "InternalError"
+	// Internal API error codes
+	FatalError = 1
 )
 
-func Error(err string, w http.ResponseWriter) {
+func getRequestMessage(r *http.Request) string {
+	return r.Method + " " + r.URL.String()
+}
+
+func Error(e int, msg string, w http.ResponseWriter) {
 	if w != nil {
-		switch (err) {
-		case InternalError:
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		}
+		http.Error(w, http.StatusText(e), e)
+		log.Println(msg)
 	} else {
-		log.Fatal(err)
+		switch (e) {
+		case FatalError:
+			log.Fatal(msg)
+		default:
+			log.Println(msg)
+		}
 	}
 }
 
-func Fatal() (string, http.ResponseWriter) {
-	return FatalError, nil
+//---------------------------------------------------------
+//---- API Errors 
+//---------------------------------------------------------
+
+func Fatal() (int, string, http.ResponseWriter) {
+	return FatalError, "Fatal Error", nil
 }
 
-func Internal(w http.ResponseWriter) (string, http.ResponseWriter) {
-	return InternalError, w
+//---------------------------------------------------------
+//---- HTTP Status Codes
+//---------------------------------------------------------
 
+//----
+//---- 2xx
+//----
+
+// HTTP 200 OK
+func OK(w http.ResponseWriter, r *http.Request) (int, string, http.ResponseWriter) {
+	return http.StatusOK, http.StatusText(http.StatusOK) + " (" + getRequestMessage(r) + ")", w
+}
+
+//----
+//---- 4xx
+//----
+
+// HTTP 400 Bad Request
+func BadRequest(w http.ResponseWriter, r *http.Request) (int, string, http.ResponseWriter) {
+	return http.StatusBadRequest, http.StatusText(http.StatusBadRequest) + " (" + getRequestMessage(r) + ")", w
+}
+
+// HTTP 404 Not Found
+func NotFound(w http.ResponseWriter, r *http.Request) (int, string, http.ResponseWriter) {
+	return http.StatusNotFound, http.StatusText(http.StatusNotFound) + " (" + getRequestMessage(r) + ")", w
+}
+
+//----
+//---- 5xx
+//----
+
+// HTTP 500 Internal Server Error
+func Internal(w http.ResponseWriter, r *http.Request) (int, string, http.ResponseWriter) {
+	return http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError) + " (" + getRequestMessage(r) + ")", w
+}
+
+// HTTP 501 Not Implemented
+func NotImplemented(w http.ResponseWriter, r *http.Request) (int, string, http.ResponseWriter) {
+	return http.StatusNotImplemented, http.StatusText(http.StatusNotImplemented) + " (" + getRequestMessage(r) + ")", w
 }

@@ -7,7 +7,7 @@
 	},
 	"host": "localhost",
 	"port": "8080",
-	"cors": false,
+	"cors": true,
 	"keystore": "my-super-secret-key",
 	"verbose": true
 }
