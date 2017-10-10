@@ -31,8 +31,8 @@ CREATE TABLE entry_tags (
         tag_id,
         entry_id
     ),
-    FOREIGN KEY (tag_id) REFERENCES tags (tag_id),
-    FOREIGN KEY (entry_id) REFERENCES entries (entry_id)
+    FOREIGN KEY (tag_id) REFERENCES tags (tag_id) ON DELETE CASCADE,
+    FOREIGN KEY (entry_id) REFERENCES entries (entry_id) ON DELETE CASCADE
 );
 
 CREATE TABLE users (

@@ -9,7 +9,7 @@ func TestHashPassword(t *testing.T) {
     {"password"},
     {"1234567890"},
     {"!@#$%%^&*()_+-={}[]\\|/,.<>?~`"},
-    {"비밀번호"},
+    {"한글비밀번호써도될까"},
   }
 
   for _, table := range tables {
