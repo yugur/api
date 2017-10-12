@@ -117,6 +117,30 @@ $ sudo -u yugur psql
 # \q
 ```
 
+You can also find a shell script in the same folder that can be used to quickly add new dictionary entries. Fill a plain text file with an entry value one per line. That is, per dictionary entry you should have exactly five lines. For example, if you had two entries you might have a file `dict.txt` like so:
+
+```
+세상
+noun
+1.생명체가 살고 있는 지구 2.사람들이 생활하고 있는 사회 3.마음대로 활동할 수 있는 곳
+ko-KR
+ko-KR
+세상
+noun
+1. world 2. planet 3. earth 4. era
+ko-KR
+en-AU
+```
+
+Then, run the script by specifying your data file and the IP address and port that your instance of the API is running on.
+
+```
+$ chmod +x populate.sh
+$ ./populate.sh dict.txt localhost 8080
+```
+
+The script will then attempt to marshal your entries into JSON objects and send a POST request to the API's entry endpoint. The script will output how many requests it has processed as well as how they were represented in JSON, in case you are having issues with formatting your data file.
+
 #### Run the API
 
 The API does not require any special options, just run it from a command line.
@@ -175,4 +199,5 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Acknowledgments
 
-* [README template](https://gist.github.com/PurpleBooth/109311bb0361f32d87a2) by [@PurpleBooth](https://github.com/PurpleBooth)
+* The community of native Western Yugur speakers for inspiring this project.
+* This great [README template](https://gist.github.com/PurpleBooth/109311bb0361f32d87a2) by [@PurpleBooth](https://github.com/PurpleBooth)
